@@ -1,0 +1,38 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Warehouse {
+  id                    Int       @id @default(autoincrement())
+  warehouseOwnerType    String?
+  warehouseType         String
+  address               String    @db.Text
+  googleLocation        String?
+  city                  String
+  state                 String
+  postalCode            String?
+  zone                  String
+  contactPerson         String
+  contactNumber         String
+  totalSpaceSqft        Int[]
+  offeredSpaceSqft      String?
+  numberOfDocks         String?
+  clearHeightFt         String?
+  compliances           String
+  otherSpecifications   String?   @db.Text
+  ratePerSqft           String
+  availability          String?
+  uploadedBy            String
+  isBroker              String?
+  photos                String?
+
+  createdAt             DateTime? @default(now())
+  statusUpdatedAt       DateTime? @updatedAt @map("status_updated_at")
+}
