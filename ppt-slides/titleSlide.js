@@ -4,7 +4,7 @@ function generateTitleSlide(pptx, warehouse) {
 
     titleSlide.addImage({
         path: 'https://media.discordapp.net/attachments/407948468284424192/1410203672947982347/6918ae2a-ec3a-4f83-b202-6a58c5290975.png?ex=68b02a03&is=68aed883&hm=b0b5d0d4e9a9c606e953904cbd92d4fd2971bb27578fe43ddebb438243fd2ea2&=&format=webp&quality=lossless',
-        x: 4.0, // Manually centered
+        x: 5.35, // Manually centered
         y: 1.8,
         w: 2.0,
         h: 2.0,
