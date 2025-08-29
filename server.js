@@ -16,6 +16,31 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+// --- NEW: API Route for FETCHING JSON DATA ---
+app.get('/api/warehouse/:id', async (req, res) => {
+    const warehouseId = parseInt(req.params.id);
+
+    if (isNaN(warehouseId)) {
+        return res.status(400).json({ error: 'Invalid Warehouse ID provided.' });
+    }
+
+    try {
+        const warehouse = await prisma.warehouse.findUnique({
+            where: { id: warehouseId },
+        });
+
+        if (!warehouse) {
+            return res.status(404).json({ error: `Warehouse with ID ${warehouseId} not found.` });
+        }
+
+        res.json(warehouse); // Send the data as JSON
+    } catch (error) {
+        console.error('Failed to fetch warehouse:', error);
+        res.status(500).json({ error: 'An internal server error occurred.' });
+    }
+});
+
+
 // --- API Route for PPT Generation ---
 app.get('/api/generate-ppt/:id', async (req, res) => {
     const warehouseId = parseInt(req.params.id);
