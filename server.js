@@ -3,7 +3,7 @@ const { PrismaClient } = require('@prisma/client');
 const cors = require('cors');
 const PptxGenJS = require('pptxgenjs');
 
-// Import the slide generation functions
+// Import your exact slide generation functions
 const { generateTitleSlide } = require('./ppt-slides/titleSlide');
 const { generateMainSlide } = require('./ppt-slides/mainSlide');
 const { generateContactSlide } = require('./ppt-slides/contactSlide');
@@ -12,67 +12,77 @@ const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
-app.use(cors());
+// Configure CORS
+const allowedOrigins = [
+    'https://your-frontend-name.onrender.com', // Your deployed frontend URL
+    'null'                                     // For local file access
+];
+const corsOptions = { origin: allowedOrigins };
+app.use(cors(corsOptions));
 app.use(express.json());
 
-// --- NEW: API Route for FETCHING JSON DATA ---
-app.get('/api/warehouse/:id', async (req, res) => {
-    const warehouseId = parseInt(req.params.id);
 
-    if (isNaN(warehouseId)) {
-        return res.status(400).json({ error: 'Invalid Warehouse ID provided.' });
+// Helper function to parse IDs
+const parseIds = (idString) => {
+    if (!idString) return [];
+    return idString.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id) && id > 0);
+};
+
+
+// API Route for FETCHING JSON DATA
+app.get('/api/warehouses', async (req, res) => {
+    const warehouseIds = parseIds(req.query.ids);
+    if (warehouseIds.length === 0) {
+        return res.status(400).json({ error: 'Invalid or no Warehouse IDs provided.' });
     }
-
     try {
-        const warehouse = await prisma.warehouse.findUnique({
-            where: { id: warehouseId },
+        const warehouses = await prisma.warehouse.findMany({
+            where: { id: { in: warehouseIds } },
         });
-
-        if (!warehouse) {
-            return res.status(404).json({ error: `Warehouse with ID ${warehouseId} not found.` });
+        if (!warehouses || warehouses.length === 0) {
+            return res.status(404).json({ error: `Warehouses with IDs ${warehouseIds.join(', ')} not found.` });
         }
-
-        res.json(warehouse); // Send the data as JSON
+        res.json(warehouses);
     } catch (error) {
-        console.error('Failed to fetch warehouse:', error);
+        console.error('Failed to fetch warehouses:', error);
         res.status(500).json({ error: 'An internal server error occurred.' });
     }
 });
 
 
-// --- API Route for PPT Generation ---
-app.get('/api/generate-ppt/:id', async (req, res) => {
-    const warehouseId = parseInt(req.params.id);
+// API Route for PPT Generation (CHANGED to POST)
+app.post('/api/generate-ppt', async (req, res) => {
+    // Get data from the request body
+    const { ids, selectedImages = {}, customDetails = {} } = req.body;
+    const warehouseIds = parseIds(ids);
 
-    if (isNaN(warehouseId)) {
-        return res.status(400).json({ error: 'Invalid Warehouse ID.' });
+    if (warehouseIds.length === 0) {
+        return res.status(400).json({ error: 'Invalid or no Warehouse IDs provided.' });
     }
 
     try {
-        // 1. Fetch Warehouse Data
-        const warehouse = await prisma.warehouse.findUnique({
-            where: { id: warehouseId },
+        const warehouses = await prisma.warehouse.findMany({
+            where: { id: { in: warehouseIds } },
         });
-
-        if (!warehouse) {
-            return res.status(404).json({ error: `Warehouse with ID ${warehouseId} not found.` });
+        if (!warehouses || warehouses.length === 0) {
+            return res.status(404).json({ error: `Warehouses with IDs ${warehouseIds.join(', ')} not found.` });
         }
 
-        // 2. Create Presentation
         let pptx = new PptxGenJS();
         pptx.layout = 'LAYOUT_WIDE';
 
-        // 3. Generate each slide by calling the imported functions
-        generateTitleSlide(pptx, warehouse);
-        generateMainSlide(pptx, warehouse);
-        generateContactSlide(pptx, warehouse);
+        // Use your slide functions, passing customDetails
+        generateTitleSlide(pptx, warehouses[0], customDetails);
+        for (const warehouse of warehouses) {
+            const selectedWarehouseImages = selectedImages[warehouse.id] || [];
+            generateMainSlide(pptx, warehouse, selectedWarehouseImages);
+        }
+        generateContactSlide(pptx, customDetails);
 
-        // 4. Generate and Send the File
-        res.setHeader('Content-Disposition', `attachment; filename="Warehouse_${warehouseId}.pptx"`);
+        const buffer = await pptx.write('base64').then(base64 => Buffer.from(base64, 'base64'));
+
+        res.setHeader('Content-Disposition', `attachment; filename="Warehouses_${warehouseIds.join('_')}.pptx"`);
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
-        const base64_data = await pptx.write('base64');
-        const buffer = Buffer.from(base64_data, 'base64');
         res.send(buffer);
 
     } catch (error) {

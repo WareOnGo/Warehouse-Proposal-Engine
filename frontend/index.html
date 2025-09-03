@@ -4,32 +4,47 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PPT Generator</title>
-    <style>
-        body { font-family: sans-serif; background-color: #f4f4f9; color: #333; padding: 20px; }
-        .container { max-width: 700px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        input { padding: 8px; margin-right: 10px; border-radius: 4px; border: 1px solid #ccc; }
-        button { padding: 8px 15px; border: none; background-color: #007bff; color: white; border-radius: 4px; cursor: pointer; }
-        button:hover { background-color: #0056b3; }
-        #status-message { background-color: #e9ecef; color: #495057; padding: 15px; border-radius: 5px; margin-top: 20px; }
-        #preview-section { border-top: 2px solid #eee; margin-top: 20px; padding-top: 20px; }
-        pre { background-color: #2d2d2d; color: #f2f2f2; padding: 15px; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word; }
-    </style>
+    
+    <link rel="stylesheet" href="style.css">
+
 </head>
 <body>
     <div class="container">
         <div id="input-section">
             <h1>Warehouse PPT Generator</h1>
-            <p>Enter the ID of the warehouse to preview its data.</p>
+            <p>Enter one or more Warehouse IDs, separated by commas.</p>
             <div>
-                <label for="warehouse-id">Warehouse ID:</label>
-                <input type="number" id="warehouse-id" placeholder="e.g., 123">
+                <label for="warehouse-id">Warehouse IDs:</label>
+                <input type="text" id="warehouse-id" placeholder="e.g., 101, 102, 103">
                 <button id="fetch-button">Fetch Details</button>
             </div>
         </div>
 
         <div id="preview-section" style="display: none;">
             <h2>Confirm Warehouse Details</h2>
-            <pre id="details-preview">...</pre>
+            <p>Click on images to select them for the presentation.</p>
+            <div id="details-container"></div>
+            
+            <div id="custom-details-form">
+                <h3>Custom Presentation Details</h3>
+                <div class="form-group">
+                    <label for="client-name">Client Name</label>
+                    <input type="text" id="client-name" placeholder="e.g., XYZ Corp">
+                </div>
+                <div class="form-group">
+                    <label for="client-requirement">Client Requirement</label>
+                    <input type="text" id="client-requirement" placeholder="e.g., ABC Area, XYZ City, 10000 sqft">
+                </div>
+                <div class="form-group">
+                    <label for="poc-name">WareOnGo POC Name</label>
+                    <input type="text" id="poc-name" placeholder="e.g., Dhaval Gupta">
+                </div>
+                <div class="form-group">
+                    <label for="poc-contact">WareOnGo POC Contact</label>
+                    <input type="text" id="poc-contact" placeholder="e.g., +91 83188 25478">
+                </div>
+            </div>
+            
             <hr style="margin: 20px 0;">
             <button id="confirm-button">Confirm and Generate PPT</button>
         </div>
