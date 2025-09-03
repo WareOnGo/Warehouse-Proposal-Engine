@@ -41,6 +41,26 @@ const parseIds = (idString) => {
     return idString.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id) && id > 0);
 };
 
+app.get('/health', async (req, res) => {
+    try {
+        // 1. Check database connection with a lightweight query
+        await prisma.$queryRaw`SELECT 1`;
+        
+        // 2. If the query succeeds, everything is healthy
+        res.status(200).json({ 
+            status: 'ok', 
+            message: 'Server and database connection are healthy.' 
+        });
+    } catch (error) {
+        // 3. If the query fails, the database connection is down
+        console.error('Health check failed:', error);
+        res.status(503).json({ 
+            status: 'error', 
+            message: 'Server is running, but database connection is unhealthy.'
+        });
+    }
+});
+
 // API Route for FETCHING JSON DATA for multiple warehouses
 app.get('/api/warehouses', async (req, res) => {
     const warehouseIds = parseIds(req.query.ids);
