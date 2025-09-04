@@ -1,9 +1,9 @@
-// app.js
 document.addEventListener('DOMContentLoaded', () => {
     // --- Get references to all elements ---
     const warehouseIdInput = document.getElementById('warehouse-id');
     const fetchButton = document.getElementById('fetch-button');
     const confirmButton = document.getElementById('confirm-button');
+    const backButton = document.getElementById('back-button');
     const statusMessage = document.getElementById('status-message');
     const inputSection = document.getElementById('input-section');
     const previewSection = document.getElementById('preview-section');
@@ -16,6 +16,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_BASE_URL = 'http://localhost:3001'; // Or your deployed Render URL
     let currentWarehouseIds = null;
 
+    // --- Event listener for the "Start Over" button ---
+    backButton.addEventListener('click', () => {
+        previewSection.style.display = 'none';
+        inputSection.style.display = 'block';
+        statusMessage.textContent = 'Ready for input.';
+        warehouseIdInput.value = '';
+        clientNameInput.value = '';
+        clientRequirementInput.value = '';
+        pocNameInput.value = '';
+        pocContactInput.value = '';
+    });
+    
     // --- Step 1: Fetch and Display Warehouse Data ---
     fetchButton.addEventListener('click', async () => {
         const warehouseIds = warehouseIdInput.value.trim();
@@ -50,8 +62,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const gallery = document.createElement('div');
                 gallery.className = 'image-gallery';
                 
-                const newTextMessage = 'Photos not available. Can be provided upon request/during site visit.';
-
                 if (warehouse.photos && warehouse.photos.length > 0) {
                     const allUrls = warehouse.photos.split(',').map(url => url.trim());
                     const imageUrls = allUrls.filter(url => /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url));
@@ -63,16 +73,30 @@ document.addEventListener('DOMContentLoaded', () => {
                             img.alt = 'Warehouse Photo';
                             img.className = 'selectable-image';
                             img.dataset.url = url;
-                            img.addEventListener('click', () => img.classList.toggle('selected'));
+                            
+                            // --- THIS IS THE UPDATED CLICK LOGIC ---
+                            img.addEventListener('click', (event) => {
+                                const clickedImage = event.currentTarget;
+                                const parentCard = clickedImage.closest('.warehouse-card');
+                                const selectedImagesInCard = parentCard.querySelectorAll('.selectable-image.selected');
+                                
+                                // Check if the user is trying to select a new image AND the limit is already reached
+                                if (!clickedImage.classList.contains('selected') && selectedImagesInCard.length >= 4) {
+                                    alert('You can only select a maximum of 4 images per warehouse.');
+                                    return; // Prevent selecting the 5th image
+                                }
+                                
+                                // Otherwise, toggle the selection as usual
+                                clickedImage.classList.toggle('selected');
+                            });
+
                             gallery.appendChild(img);
                         });
                     } else {
-                        // THIS TEXT IS UPDATED
-                        gallery.textContent = newTextMessage;
+                        gallery.textContent = 'Photos not available. Can be provided upon request/during site visit.';
                     }
                 } else {
-                    // THIS TEXT IS UPDATED
-                    gallery.textContent = newTextMessage;
+                    gallery.textContent = 'Photos not available. Can be provided upon request/during site visit.';
                 }
                 card.appendChild(gallery);
                 detailsContainer.appendChild(card);

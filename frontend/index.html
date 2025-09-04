@@ -4,16 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PPT Generator</title>
-    
     <link rel="stylesheet" href="style.css">
-
 </head>
 <body>
     <div class="container">
         <div id="input-section">
             <h1>Warehouse PPT Generator</h1>
             <p>Enter one or more Warehouse IDs, separated by commas.</p>
-            <div>
+            <div class="input-row">
                 <label for="warehouse-id">Warehouse IDs:</label>
                 <input type="text" id="warehouse-id" placeholder="e.g., 101, 102, 103">
                 <button id="fetch-button">Fetch Details</button>
@@ -21,7 +19,11 @@
         </div>
 
         <div id="preview-section" style="display: none;">
-            <h2>Confirm Warehouse Details</h2>
+            <div class="preview-header">
+                <h2>Confirm Warehouse Details</h2>
+                <button id="back-button">&#8592; Start Over</button>
+            </div>
+            
             <p>Click on images to select them for the presentation.</p>
             <div id="details-container"></div>
             
@@ -33,7 +35,7 @@
                 </div>
                 <div class="form-group">
                     <label for="client-requirement">Client Requirement</label>
-                    <input type="text" id="client-requirement" placeholder="e.g., ABC Area, XYZ City, 10000 sqft">
+                    <input type="text" id="client-requirement" placeholder="eg. Nelamangala, Bangalore - 100000 sft">
                 </div>
                 <div class="form-group">
                     <label for="poc-name">WareOnGo POC Name</label>
@@ -41,12 +43,17 @@
                 </div>
                 <div class="form-group">
                     <label for="poc-contact">WareOnGo POC Contact</label>
-                    <input type="text" id="poc-contact" placeholder="e.g., +91 83188 25478">
+                    <div class="phone-input-group">
+                        <span>+91</span>
+                        <input type="text" id="poc-contact" placeholder="83188 25478">
+                    </div>
                 </div>
             </div>
             
             <hr style="margin: 20px 0;">
-            <button id="confirm-button">Confirm and Generate PPT</button>
+            <div class="button-group">
+                <button id="confirm-button">Confirm and Generate PPT</button>
+            </div>
         </div>
         
         <h3>Status:</h3>
