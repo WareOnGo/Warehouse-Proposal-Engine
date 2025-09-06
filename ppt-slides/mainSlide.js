@@ -1,7 +1,7 @@
 // ppt-slides/mainSlide.js
 const axios = require('axios');
 
-async function generateMainSlide(pptx, warehouse, selectedPhotoUrls) {
+async function generateMainSlide(pptx, warehouse, selectedPhotoUrls,optionIndex) {
     const mainSlide = pptx.addSlide();
     mainSlide.background = { color: 'FFFFFF' };
 
@@ -10,7 +10,7 @@ async function generateMainSlide(pptx, warehouse, selectedPhotoUrls) {
 
     // --- All table and text logic remains the same ---
     let textY = 0.7;
-    mainSlide.addText(`Warehouse ID: ${warehouse.id}`, { x: 0.2, y: textY, w: 3.0, fontFace: 'Arial', fontSize: 18, bold: true });
+    mainSlide.addText(`Option ${optionIndex}`, { x: 0.2, y: textY, w: 3.0, fontFace: 'Arial', fontSize: 18, bold: true });
     textY += 0.5;
     const tableOptions = { x: 0.2, w: 3.1, border: { type: 'solid', pt: 1, color: 'CCCCCC' }, fill: { color: 'E9E9E9' }, fontSize: 9, colW: [1.3, 1.8], margin: 0.1, valign: 'middle' };
     mainSlide.addText('Property Information', { x: 0.2, y: textY, w: 3.0, fontFace: 'Arial', fontSize: 11, color: '0077CC', bold: true });

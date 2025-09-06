@@ -13,16 +13,13 @@ const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 
-// --- NEW: CORS Configuration using Environment Variable ---
+// --- CORS Configuration using Environment Variable ---
 const allowedOrigins = [
     'null' // Always allow local file access for development
 ];
-
-// Add the production frontend URL from environment variables if it exists
 if (process.env.FRONTEND_URL) {
     allowedOrigins.push(process.env.FRONTEND_URL);
 }
-
 const corsOptions = {
     origin: allowedOrigins
 };
@@ -32,32 +29,20 @@ app.use(cors(corsOptions));
 app.use(express.json());
 
 
-// ... (The rest of your server.js file remains exactly the same)
-
-
 // Helper function to parse IDs from a comma-separated string
 const parseIds = (idString) => {
     if (!idString) return [];
     return idString.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id) && id > 0);
 };
 
+// Health Check Route
 app.get('/health', async (req, res) => {
     try {
-        // 1. Check database connection with a lightweight query
         await prisma.$queryRaw`SELECT 1`;
-        
-        // 2. If the query succeeds, everything is healthy
-        res.status(200).json({ 
-            status: 'ok', 
-            message: 'Server and database connection are healthy.' 
-        });
+        res.status(200).json({ status: 'ok', message: 'Server and database connection are healthy.' });
     } catch (error) {
-        // 3. If the query fails, the database connection is down
         console.error('Health check failed:', error);
-        res.status(503).json({ 
-            status: 'error', 
-            message: 'Server is running, but database connection is unhealthy.'
-        });
+        res.status(503).json({ status: 'error', message: 'Server is running, but database connection is unhealthy.'});
     }
 });
 
@@ -102,9 +87,11 @@ app.post('/api/generate-ppt', async (req, res) => {
         generateTitleSlide(pptx, warehouses[0], customDetails);
 
         // CORRECTED LOOP: Use a for...of loop to properly handle await
+        let optionCounter = 1;
         for (const warehouse of warehouses) {
             const selectedWarehouseImages = selectedImages[warehouse.id] || [];
-            await generateMainSlide(pptx, warehouse, selectedWarehouseImages);
+            await generateMainSlide(pptx, warehouse, selectedWarehouseImages, optionCounter);
+            optionCounter++;
         }
 
         generateContactSlide(pptx, customDetails);
@@ -120,7 +107,6 @@ app.post('/api/generate-ppt', async (req, res) => {
         res.status(500).json({ error: 'An internal server error occurred during PPT generation.' });
     }
 });
-
 
 // Start Server
 app.listen(PORT, () => {
