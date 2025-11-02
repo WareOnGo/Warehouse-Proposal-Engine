@@ -42,13 +42,13 @@ function generateIndexSlide(pptx, warehouses) {
 
     // Table configuration
     const tableOptions = {
-        x: 0.5,
+        x: 1.0, // Center the table better
         y: 1.5,
-        w: 12.3, // Full width for widescreen layout
+        w: 11.33, // Adjusted width for better centering
         border: { type: 'solid', pt: 1, color: 'CCCCCC' },
         fontSize: 11,
         fontFace: 'Arial',
-        colW: [0.8, 2.5, 3.0, 3.0, 3.0], // Column widths
+        colW: [0.7, 1.3, 2.8, 2.8, 2.8, 1.3], // Better balanced column widths: S.No, Warehouse#, Location, Rental, Area, Availability
         rowH: 0.5,
         valign: 'middle',
         margin: 0.1
@@ -66,10 +66,11 @@ function createTableData(warehouses) {
     // Header row with SNAP SHOTS styling
     const headerRow = [
         { text: 'S.No', options: { fill: '1f4e79', color: 'FFFFFF', bold: true, align: 'center' } },
-        { text: 'Option Name', options: { fill: '1f4e79', color: 'FFFFFF', bold: true, align: 'center' } },
+        { text: 'Warehouse Number', options: { fill: '1f4e79', color: 'FFFFFF', bold: true, align: 'center' } },
         { text: 'Location', options: { fill: '1f4e79', color: 'FFFFFF', bold: true, align: 'center' } },
         { text: 'Quoted Monthly Rental (INR/Sq.ft)', options: { fill: '1f4e79', color: 'FFFFFF', bold: true, align: 'center' } },
-        { text: 'Offered Area (Sq.ft)', options: { fill: '1f4e79', color: 'FFFFFF', bold: true, align: 'center' } }
+        { text: 'Offered Area (Sq.ft)', options: { fill: '1f4e79', color: 'FFFFFF', bold: true, align: 'center' } },
+        { text: 'Availability', options: { fill: '1f4e79', color: 'FFFFFF', bold: true, align: 'center' } }
     ];
 
     // Data rows with alternating colors
@@ -79,10 +80,11 @@ function createTableData(warehouses) {
         
         return [
             { text: (index + 1).toString(), options: { fill: rowColor, align: 'center' } },
-            { text: `Option ${index + 1}`, options: { fill: rowColor } },
+            { text: warehouse.id ? warehouse.id.toString() : 'N/A', options: { fill: rowColor, align: 'center' } },
             { text: formatLocation(warehouse), options: { fill: rowColor } },
             { text: formatRentalRate(warehouse.ratePerSqft), options: { fill: rowColor, align: 'center' } },
-            { text: formatArea(warehouse.totalSpaceSqft), options: { fill: rowColor, align: 'center' } }
+            { text: formatArea(warehouse.totalSpaceSqft), options: { fill: rowColor, align: 'center' } },
+            { text: formatAvailability(warehouse.availability), options: { fill: rowColor, align: 'center' } }
         ];
     });
 
@@ -159,6 +161,19 @@ function formatNumberWithCommas(num) {
     }
     
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+/**
+ * Formats availability field
+ * @param {string} availability - Availability value from warehouse
+ * @returns {string} Formatted availability string
+ */
+function formatAvailability(availability) {
+    if (!availability || availability === '') {
+        return 'N/A';
+    }
+    
+    return availability.toString().trim();
 }
 
 module.exports = { generateIndexSlide };
