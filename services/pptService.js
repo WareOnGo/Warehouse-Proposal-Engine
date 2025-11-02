@@ -2,6 +2,7 @@ const PptxGenJS = require('pptxgenjs');
 
 // Note the relative path to your existing slide generation functions
 const { generateTitleSlide } = require('../ppt-slides/titleSlide');
+const { generateIndexSlide } = require('../ppt-slides/indexSlide');
 const { generateMainSlide } = require('../ppt-slides/mainSlide');
 const { generateContactSlide } = require('../ppt-slides/contactSlide');
 
@@ -11,6 +12,9 @@ const createPptBuffer = async (warehouses, selectedImages, customDetails) => {
     pptx.layout = 'LAYOUT_WIDE';
 
     generateTitleSlide(pptx, warehouses[0], customDetails);
+
+    // Generate index slide after title slide and before warehouse detail slides
+    generateIndexSlide(pptx, warehouses);
 
     // Use a for...of loop to properly handle async operations in generateMainSlide
     let optionCounter = 1;
