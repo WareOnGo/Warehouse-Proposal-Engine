@@ -1,19 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PPT Generator</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div class="container">
         <div id="input-section">
             <h1>Warehouse PPT Generator</h1>
             <p>Enter one or more Warehouse IDs, separated by commas.</p>
-            
-            <p><a href="https://docs.google.com/spreadsheets/u/1/d/1dQovSt7gxmf-A6pbOirkwtmh6-lLz2ZDbXz-erG-DC8/edit?gid=0#gid=0" target="_blank">Warehouse ID Reference Sheet</a></p>
-            
+
+            <p><a href="https://docs.google.com/spreadsheets/u/1/d/1dQovSt7gxmf-A6pbOirkwtmh6-lLz2ZDbXz-erG-DC8/edit?gid=0#gid=0"
+                    target="_blank">Warehouse ID Reference Sheet</a></p>
+
+            <div class="presentation-type-selector">
+                <label class="presentation-type-label">Presentation Type:</label>
+                <div class="radio-group">
+                    <label class="radio-option">
+                        <input type="radio" name="ppt-type" value="standard" checked>
+                        <span class="radio-label">
+                            <strong>Standard PPT</strong>
+                            <small>Basic warehouse info with selected images</small>
+                        </span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="ppt-type" value="detailed">
+                        <span class="radio-label">
+                            <strong>Detailed PPT</strong>
+                            <small>Comprehensive data with geospatial info, distance highlights, satellite images, and
+                                all photos (takes longer)</small>
+                        </span>
+                    </label>
+                </div>
+            </div>
+
             <div class="input-row">
                 <label for="warehouse-id">Warehouse IDs:</label>
                 <input type="text" id="warehouse-id" placeholder="e.g., 101, 102, 103">
@@ -26,10 +50,12 @@
                 <h2>Confirm Warehouse Details</h2>
                 <button id="back-button">&#8592; Start Over</button>
             </div>
-            
-            <p>Click on images to select them for the presentation.</p>
+
+            <div id="ppt-type-info" class="info-banner"></div>
+
+            <p id="image-selection-instruction">Click on images to select them for the presentation.</p>
             <div id="details-container"></div>
-            
+
             <div id="custom-details-form">
                 <h3>Custom Presentation Details</h3>
                 <div class="form-group">
@@ -52,17 +78,18 @@
                     </div>
                 </div>
             </div>
-            
+
             <hr style="margin: 20px 0;">
             <div class="button-group">
                 <button id="confirm-button">Confirm and Generate PPT</button>
             </div>
         </div>
-        
+
         <h3>Status:</h3>
         <div id="status-message">Ready for input.</div>
     </div>
 
     <script src="app.js"></script>
 </body>
+
 </html>

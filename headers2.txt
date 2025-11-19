@@ -1,0 +1,11 @@
+HTTP/1.1 200 OK
+X-Powered-By: Express
+Vary: Origin
+Content-Disposition: attachment; filename="Warehouses_420_421.pptx"
+Content-Type: application/vnd.openxmlformats-officedocument.presentationml.presentation
+Content-Length: 253656
+ETag: W/"3ded8-0iIKIMIhDT8mS5vS5ifAR4w5NM0"
+Date: Sun, 02 Nov 2025 22:10:54 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+

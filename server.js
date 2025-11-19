@@ -27,6 +27,13 @@ app.use(express.json());
 app.use('/', warehouseRoutes);
 
 // Start Server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
+
+// Configure server timeout to 10 minutes (600000ms) to support detailed PPT generation
+// This ensures the server doesn't timeout before the detailed PPT endpoint completes
+// Extended to accommodate slower OpenStreetMap API responses
+server.timeout = 600000;
+server.keepAliveTimeout = 600000;
+server.headersTimeout = 610000; // Slightly higher than keepAliveTimeout
