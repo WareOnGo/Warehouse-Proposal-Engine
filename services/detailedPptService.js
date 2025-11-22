@@ -1,7 +1,6 @@
 const PptxGenJS = require('pptxgenjs');
 const geospatialService = require('./geospatialService');
 const { generateTitleSlide } = require('../ppt-slides/titleSlide');
-const { generateIndexSlide } = require('../ppt-slides/indexSlide');
 const { generateContactSlide } = require('../ppt-slides/contactSlide');
 const { logError, logWarn, logInfo } = require('../utils/logger');
 
@@ -60,7 +59,7 @@ function parsePhotos(photosString) {
     }
 
     const trimmedUrl = url.trim();
-    
+
     // Check if it's a valid URL format
     try {
       // Basic URL validation - must start with http:// or https://
@@ -104,7 +103,7 @@ async function enrichWarehouseWithGeospatialData(warehouse) {
 
     // Extract coordinates from googleLocation
     const coordinates = await geospatialService.extractCoordinates(warehouse.googleLocation);
-    
+
     if (!coordinates) {
       logWarn('detailedPptService', 'enrichWarehouseWithGeospatialData', 'No coordinates found for warehouse', {
         warehouseId: warehouse.id,
@@ -140,10 +139,11 @@ async function enrichWarehouseWithGeospatialData(warehouse) {
       hasRailway: !!nearestRailway
     });
 
-    // Fetch satellite image URL
+    // Fetch satellite image URL with higher zoom level for more detail
     enrichedWarehouse.geospatial.satelliteImageUrl = geospatialService.fetchSatelliteImageUrl(
       coordinates.latitude,
-      coordinates.longitude
+      coordinates.longitude,
+      17 // Higher zoom level for closer view
     );
 
     logInfo('detailedPptService', 'enrichWarehouseWithGeospatialData', 'Satellite image URL generated', {
@@ -178,9 +178,6 @@ async function createDetailedPptBuffer(warehouses, customDetails) {
     generateTitleSlide(pptx, warehouses[0], customDetails);
   }
 
-  // Generate index slide using existing function
-  generateIndexSlide(pptx, warehouses);
-
   // Loop through warehouses and enrich with geospatial data
   let optionIndex = 1;
   for (const warehouse of warehouses) {
@@ -188,7 +185,7 @@ async function createDetailedPptBuffer(warehouses, customDetails) {
       warehouseId: warehouse.id,
       optionIndex
     });
-    
+
     // Enrich warehouse with geospatial data
     const enrichedWarehouse = await enrichWarehouseWithGeospatialData(warehouse);
 

@@ -3,18 +3,32 @@ const axios = require('axios');
 const { logError, logWarn } = require('../utils/logger');
 
 /**
- * Generate detailed slide for a warehouse with distance highlights, technical details, commercials, and satellite image
+ * Generate detailed slides for a warehouse - split into location and technical slides
  * @param {Object} pptx - PptxGenJS instance
  * @param {Object} warehouse - Enriched warehouse object with geospatial data
  * @param {number} optionIndex - Option number for this warehouse
  */
 async function generateDetailedSlide(pptx, warehouse, optionIndex) {
+  // Generate Slide 1: Location slide with distance highlights, address, and satellite image
+  await generateLocationSlide(pptx, warehouse, optionIndex);
+  
+  // Generate Slide 2: Technical slide with technical details, commercials, and placeholder image
+  generateTechnicalSlide(pptx, warehouse, optionIndex);
+}
+
+/**
+ * Generate location slide with distance highlights, address, and satellite image
+ * @param {Object} pptx - PptxGenJS instance
+ * @param {Object} warehouse - Enriched warehouse object with geospatial data
+ * @param {number} optionIndex - Option number for this warehouse
+ */
+async function generateLocationSlide(pptx, warehouse, optionIndex) {
   const slide = pptx.addSlide();
   slide.background = { color: 'FFFFFF' };
 
-  // Add slide title: "Option X - [City]"
+  // Add slide title: "Option X - [City] - Location"
   const city = warehouse.city || 'Location';
-  const title = `Option ${optionIndex} - ${city}`;
+  const title = `Option ${optionIndex} - ${city} - Location`;
   slide.addText(title, {
     x: 0.3,
     y: 0.3,
@@ -26,21 +40,58 @@ async function generateDetailedSlide(pptx, warehouse, optionIndex) {
     color: '1F4788'
   });
 
-  // Two-column layout with better proportions
+  // Left column for tables
   const leftColumnX = 0.3;
-  const leftColumnW = 7.2;
-  const rightColumnX = 7.7;
-  const rightColumnW = 5.4;
+  const leftColumnW = 6.5;
   let currentY = 1.0;
 
-  // Left column - all tables
+  // Render distance highlights and address
   currentY = renderDistanceHighlights(slide, warehouse, leftColumnX, currentY, leftColumnW);
-  currentY = renderAddress(slide, warehouse, leftColumnX, currentY, leftColumnW);
+  renderAddress(slide, warehouse, leftColumnX, currentY, leftColumnW);
+
+  // Right column for satellite image - larger and more prominent
+  const rightColumnX = 7.2;
+  const rightColumnW = 5.8;
+  await renderSatelliteImage(pptx, slide, warehouse, rightColumnX, 1.0, rightColumnW);
+}
+
+/**
+ * Generate technical slide with technical details, commercials, and placeholder image
+ * @param {Object} pptx - PptxGenJS instance
+ * @param {Object} warehouse - Enriched warehouse object with geospatial data
+ * @param {number} optionIndex - Option number for this warehouse
+ */
+function generateTechnicalSlide(pptx, warehouse, optionIndex) {
+  const slide = pptx.addSlide();
+  slide.background = { color: 'FFFFFF' };
+
+  // Add slide title: "Option X - [City] - Technical Details"
+  const city = warehouse.city || 'Location';
+  const title = `Option ${optionIndex} - ${city} - Technical Details`;
+  slide.addText(title, {
+    x: 0.3,
+    y: 0.3,
+    w: 12.5,
+    h: 0.5,
+    fontFace: 'Arial',
+    fontSize: 20,
+    bold: true,
+    color: '1F4788'
+  });
+
+  // Left column for tables
+  const leftColumnX = 0.3;
+  const leftColumnW = 6.5;
+  let currentY = 1.0;
+
+  // Render technical details and commercials
   currentY = renderTechnicalDetails(slide, warehouse, leftColumnX, currentY, leftColumnW);
   renderCommercials(slide, warehouse, leftColumnX, currentY, leftColumnW);
 
-  // Right column - satellite image
-  await renderSatelliteImage(pptx, slide, warehouse, rightColumnX, 1.0, rightColumnW);
+  // Right column for placeholder image
+  const rightColumnX = 7.2;
+  const rightColumnW = 5.8;
+  renderPlaceholderImage(pptx, slide, rightColumnX, 1.0, rightColumnW);
 }
 
 /**
@@ -58,14 +109,14 @@ function renderDistanceHighlights(slide, warehouse, x, y, width) {
     x: x,
     y: y,
     w: width,
-    h: 0.4,
+    h: 0.3,
     fontFace: 'Arial',
-    fontSize: 14,
+    fontSize: 12,
     bold: true,
     color: '1F4788'
   });
 
-  y += 0.45;
+  y += 0.35;
 
   // Prepare distance data
   const geospatial = warehouse.geospatial || {};
@@ -84,20 +135,20 @@ function renderDistanceHighlights(slide, warehouse, x, y, width) {
 
   const distanceData = [
     [
-      { text: 'Nearest Airport', options: { bold: true, fontSize: 10 } },
-      { text: `${airportName} (${airportDistance})`, options: { fontSize: 10 } }
+      { text: 'Nearest Airport', options: { bold: true, fontSize: 9 } },
+      { text: `${airportName} (${airportDistance})`, options: { fontSize: 9 } }
     ],
     [
-      { text: 'Nearest Highway', options: { bold: true, fontSize: 10 } },
-      { text: `${highwayName} (${highwayDistance})`, options: { fontSize: 10 } }
+      { text: 'Nearest Highway', options: { bold: true, fontSize: 9 } },
+      { text: `${highwayName} (${highwayDistance})`, options: { fontSize: 9 } }
     ],
     [
-      { text: 'Nearest Railway', options: { bold: true, fontSize: 10 } },
-      { text: `${railwayName} (${railwayDistance})`, options: { fontSize: 10 } }
+      { text: 'Nearest Railway', options: { bold: true, fontSize: 9 } },
+      { text: `${railwayName} (${railwayDistance})`, options: { fontSize: 9 } }
     ],
     [
-      { text: 'Approach Road', options: { bold: true, fontSize: 10 } },
-      { text: 'TBD', options: { fontSize: 10 } }
+      { text: 'Approach Road', options: { bold: true, fontSize: 9 } },
+      { text: 'TBD', options: { fontSize: 9 } }
     ]
   ];
 
@@ -108,13 +159,13 @@ function renderDistanceHighlights(slide, warehouse, x, y, width) {
     border: { type: 'solid', pt: 1, color: 'DDDDDD' },
     fill: { color: 'F8F9FA' },
     fontFace: 'Arial',
-    colW: [width * 0.4, width * 0.6],
-    rowH: 0.35,
+    colW: [width * 0.32, width * 0.68],
+    rowH: 0.26,
     valign: 'middle',
-    margin: 0.1
+    margin: 0.05
   });
 
-  return y + (distanceData.length * 0.35) + 0.3;
+  return y + (distanceData.length * 0.26) + 0.2;
 }
 
 /**
@@ -132,30 +183,42 @@ function renderAddress(slide, warehouse, x, y, width) {
     x: x,
     y: y,
     w: width,
-    h: 0.4,
+    h: 0.3,
     fontFace: 'Arial',
-    fontSize: 14,
+    fontSize: 12,
     bold: true,
     color: '1F4788'
   });
 
-  y += 0.45;
+  y += 0.35;
 
-  // Address text with wrapping
+  // Address as single row with all information combined
   const address = warehouse.address || 'N/A';
-  slide.addText(address, {
+  const city = warehouse.city || 'N/A';
+  const state = warehouse.state || 'N/A';
+  const fullAddress = `${address}, ${city}, ${state}`;
+
+  const addressData = [
+    [
+      { text: 'Address', options: { bold: true, fontSize: 9 } },
+      { text: fullAddress, options: { fontSize: 9 } }
+    ]
+  ];
+
+  slide.addTable(addressData, {
     x: x,
     y: y,
     w: width,
-    h: 0.7,
+    border: { type: 'solid', pt: 1, color: 'DDDDDD' },
+    fill: { color: 'F8F9FA' },
     fontFace: 'Arial',
-    fontSize: 10,
-    color: '333333',
-    valign: 'top',
-    wrap: true
+    colW: [width * 0.13, width * 0.87],
+    rowH: 0.26,
+    valign: 'middle',
+    margin: 0.05
   });
 
-  return y + 0.8;
+  return y + 0.26 + 0.2;
 }
 
 /**
@@ -173,14 +236,14 @@ function renderTechnicalDetails(slide, warehouse, x, y, width) {
     x: x,
     y: y,
     w: width,
-    h: 0.4,
+    h: 0.3,
     fontFace: 'Arial',
-    fontSize: 14,
+    fontSize: 12,
     bold: true,
     color: '1F4788'
   });
 
-  y += 0.45;
+  y += 0.35;
 
   // Prepare technical details data
   const warehouseData = warehouse.WarehouseData || {};
@@ -256,13 +319,13 @@ function renderTechnicalDetails(slide, warehouse, x, y, width) {
     border: { type: 'solid', pt: 1, color: 'DDDDDD' },
     fill: { color: 'F8F9FA' },
     fontFace: 'Arial',
-    colW: [width * 0.4, width * 0.6],
-    rowH: 0.28,
+    colW: [width * 0.32, width * 0.68],
+    rowH: 0.22,
     valign: 'middle',
-    margin: 0.08
+    margin: 0.04
   });
 
-  return y + (technicalData.length * 0.28) + 0.3;
+  return y + (technicalData.length * 0.22) + 0.2;
 }
 
 /**
@@ -279,14 +342,14 @@ function renderCommercials(slide, warehouse, x, y, width) {
     x: x,
     y: y,
     w: width,
-    h: 0.4,
+    h: 0.3,
     fontFace: 'Arial',
-    fontSize: 14,
+    fontSize: 12,
     bold: true,
     color: '1F4788'
   });
 
-  y += 0.45;
+  y += 0.35;
 
   // Prepare commercials data
   const rentPerSqft = warehouse.ratePerSqft 
@@ -323,10 +386,57 @@ function renderCommercials(slide, warehouse, x, y, width) {
     border: { type: 'solid', pt: 1, color: 'DDDDDD' },
     fill: { color: 'F8F9FA' },
     fontFace: 'Arial',
-    colW: [width * 0.4, width * 0.6],
-    rowH: 0.35,
+    colW: [width * 0.32, width * 0.68],
+    rowH: 0.26,
     valign: 'middle',
-    margin: 0.1
+    margin: 0.05
+  });
+}
+
+/**
+ * Render placeholder image for layout purposes
+ * @param {Object} pptx - PptxGenJS instance
+ * @param {Object} slide - Slide object
+ * @param {number} x - X position
+ * @param {number} y - Y position
+ * @param {number} width - Image width
+ */
+function renderPlaceholderImage(pptx, slide, x, y, width) {
+  const imageHeight = 5.5;
+
+  // Add section header
+  slide.addText('Warehouse Image', {
+    x: x,
+    y: y,
+    w: width,
+    h: 0.3,
+    fontFace: 'Arial',
+    fontSize: 12,
+    bold: true,
+    color: '1F4788'
+  });
+
+  y += 0.35;
+
+  // Display placeholder rectangle with light gray background
+  slide.addShape(pptx.shapes.RECTANGLE, {
+    x: x,
+    y: y,
+    w: width,
+    h: imageHeight,
+    fill: { color: 'F5F5F5' },
+    line: { color: 'DDDDDD', width: 1 }
+  });
+  
+  slide.addText('Image placeholder', {
+    x: x,
+    y: y + (imageHeight / 2) - 0.25,
+    w: width,
+    h: 0.5,
+    align: 'center',
+    valign: 'middle',
+    fontSize: 11,
+    color: 'AAAAAA'
   });
 }
 
@@ -342,21 +452,21 @@ function renderCommercials(slide, warehouse, x, y, width) {
 async function renderSatelliteImage(pptx, slide, warehouse, x, y, width) {
   const geospatial = warehouse.geospatial || {};
   const satelliteImageUrl = geospatial.satelliteImageUrl;
-  const imageHeight = 6.0; // Larger image
+  const imageHeight = 5.5; // Larger image for location slide
 
   // Add section header
   slide.addText('Satellite View', {
     x: x,
     y: y,
     w: width,
-    h: 0.4,
+    h: 0.3,
     fontFace: 'Arial',
-    fontSize: 14,
+    fontSize: 12,
     bold: true,
     color: '1F4788'
   });
 
-  y += 0.45;
+  y += 0.35;
 
   if (!satelliteImageUrl) {
     // Display placeholder rectangle if no image URL
@@ -413,19 +523,33 @@ async function renderSatelliteImage(pptx, slide, warehouse, x, y, width) {
       sizing: { type: 'cover', w: width, h: imageHeight }
     });
 
-    // Add a marker pin at the center of the image to show warehouse location
-    const markerSize = 0.15;
-    const centerX = x + (width / 2) - (markerSize / 2);
-    const centerY = y + (imageHeight / 2) - (markerSize / 2);
+    // Add a blue location pin marker at the center
+    const pinSize = 0.25;
+    const centerX = x + (width / 2) - (pinSize / 2);
+    const centerY = y + (imageHeight / 2) - (pinSize / 2);
     
-    // Red circle marker
+    // Blue circle marker with white border (simple and effective)
     slide.addShape(pptx.shapes.OVAL, {
       x: centerX,
       y: centerY,
-      w: markerSize,
-      h: markerSize,
-      fill: { color: 'FF0000' },
-      line: { color: 'FFFFFF', width: 2 }
+      w: pinSize,
+      h: pinSize,
+      fill: { color: '0066FF' },
+      line: { color: 'FFFFFF', width: 3 }
+    });
+    
+    // Add a smaller white circle in the center for pin effect
+    const innerSize = pinSize * 0.4;
+    const innerX = centerX + (pinSize - innerSize) / 2;
+    const innerY = centerY + (pinSize - innerSize) / 2;
+    
+    slide.addShape(pptx.shapes.OVAL, {
+      x: innerX,
+      y: innerY,
+      w: innerSize,
+      h: innerSize,
+      fill: { color: 'FFFFFF' },
+      line: { color: '0066FF', width: 1 }
     });
 
   } catch (error) {

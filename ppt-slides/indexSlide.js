@@ -92,20 +92,15 @@ function createTableData(warehouses) {
 }
 
 /**
- * Formats location from warehouse city and state
+ * Formats location from warehouse address
  * @param {Object} warehouse - Warehouse object
- * @returns {string} Formatted location string
+ * @returns {string} Formatted location string (address only)
  */
 function formatLocation(warehouse) {
-    const city = warehouse.city || '';
-    const state = warehouse.state || '';
+    const address = warehouse.address || '';
     
-    if (city && state) {
-        return `${city}, ${state}`;
-    } else if (city) {
-        return city;
-    } else if (state) {
-        return state;
+    if (address) {
+        return address;
     } else {
         return 'N/A';
     }
