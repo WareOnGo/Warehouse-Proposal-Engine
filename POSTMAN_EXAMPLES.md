@@ -192,10 +192,16 @@ Content-Type: application/json
 
 ### Request Body Examples
 
-#### Example 1 - Single Warehouse with Complete Data
+#### Example 1 - Single Warehouse with Selected Images
 ```json
 {
   "ids": "1",
+  "selectedImages": {
+    "1": [
+      "https://example.com/warehouse1-photo1.jpg",
+      "https://example.com/warehouse1-photo2.jpg"
+    ]
+  },
   "customDetails": {
     "companyName": "Premium Logistics Solutions",
     "employeeName": "Sarah Johnson"
@@ -203,10 +209,17 @@ Content-Type: application/json
 }
 ```
 
-#### Example 2 - Multiple Warehouses
+#### Example 2 - Multiple Warehouses with Selected Images
 ```json
 {
   "ids": "1,2,3,4,5",
+  "selectedImages": {
+    "1": ["https://example.com/warehouse1-photo1.jpg"],
+    "2": ["https://example.com/warehouse2-photo1.jpg", "https://example.com/warehouse2-photo2.jpg"],
+    "3": [],
+    "4": ["https://example.com/warehouse4-photo1.jpg"],
+    "5": []
+  },
   "customDetails": {
     "companyName": "Global Warehousing Corp",
     "employeeName": "Michael Chen"

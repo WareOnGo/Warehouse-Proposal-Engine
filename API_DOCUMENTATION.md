@@ -187,10 +187,11 @@ Content-Type: application/json
 
 **Request Body:**
 
-| Field         | Type   | Required | Description                                    |
-|---------------|--------|----------|------------------------------------------------|
-| ids           | string | Yes      | Comma-separated warehouse IDs                  |
-| customDetails | object | No       | Custom details for title and contact slides    |
+| Field          | Type   | Required | Description                                    |
+|----------------|--------|----------|------------------------------------------------|
+| ids            | string | Yes      | Comma-separated warehouse IDs                  |
+| selectedImages | object | No       | Map of warehouse ID to array of image URLs     |
+| customDetails  | object | No       | Custom details for title and contact slides    |
 
 **customDetails Object:**
 
@@ -203,6 +204,16 @@ Content-Type: application/json
 ```json
 {
   "ids": "1,2,3",
+  "selectedImages": {
+    "1": [
+      "https://example.com/warehouse1-photo1.jpg",
+      "https://example.com/warehouse1-photo2.jpg"
+    ],
+    "2": [
+      "https://example.com/warehouse2-photo1.jpg"
+    ],
+    "3": []
+  },
   "customDetails": {
     "companyName": "Premium Logistics Solutions",
     "employeeName": "Sarah Johnson"

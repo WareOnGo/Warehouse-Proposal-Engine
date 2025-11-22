@@ -93,7 +93,7 @@ const generatePresentation = async (req, res) => {
 
 // Controller for the POST /api/generate-detailed-ppt endpoint
 const generateDetailedPresentation = async (req, res) => {
-    const { ids, customDetails = {} } = req.body;
+    const { ids, selectedImages = {}, customDetails = {} } = req.body;
     const warehouseIds = parseIds(ids);
     
     // Validate warehouse IDs (must be positive integers)
@@ -122,7 +122,7 @@ const generateDetailedPresentation = async (req, res) => {
         });
         
         // Call detailedPptService.createDetailedPptBuffer()
-        const buffer = await detailedPptService.createDetailedPptBuffer(warehouses, customDetails);
+        const buffer = await detailedPptService.createDetailedPptBuffer(warehouses, selectedImages, customDetails);
 
         logInfo('warehouseController', 'generateDetailedPresentation', 'Successfully generated detailed presentation', {
             warehouseIds,

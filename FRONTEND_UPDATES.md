@@ -77,9 +77,10 @@ The confirm button now calls different endpoints based on selection:
 
 **Detailed PPT:**
 - Endpoint: `/api/generate-detailed-ppt`
-- Includes: Only `companyName` and `employeeName` in customDetails
+- Includes: `selectedImages`, `companyName` and `employeeName` in customDetails
 - Filename: `Detailed_Warehouses_X_Y_Z.pptx`
 - Extended timeout handling
+- Uses selected images if provided, otherwise uses all available photos
 
 ### 5. Updated Status Messages (app.js)
 

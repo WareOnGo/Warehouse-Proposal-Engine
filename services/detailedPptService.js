@@ -165,10 +165,11 @@ async function enrichWarehouseWithGeospatialData(warehouse) {
 /**
  * Create detailed PPT buffer with enriched warehouse data
  * @param {Array} warehouses - Array of warehouse objects from database
+ * @param {Object} selectedImages - Map of warehouse ID to array of selected image URLs
  * @param {Object} customDetails - Custom details for title and contact slides
  * @returns {Promise<Buffer>} PowerPoint file buffer
  */
-async function createDetailedPptBuffer(warehouses, customDetails) {
+async function createDetailedPptBuffer(warehouses, selectedImages, customDetails) {
   // Initialize PptxGenJS with widescreen layout
   const pptx = new PptxGenJS();
   pptx.layout = 'LAYOUT_WIDE';
@@ -199,12 +200,15 @@ async function createDetailedPptBuffer(warehouses, customDetails) {
     }
 
     // Generate photo slides for this warehouse
-    if (generatePhotoSlides && enrichedWarehouse.validPhotos.length > 0) {
-      await generatePhotoSlides(pptx, enrichedWarehouse, optionIndex);
-    } else if (enrichedWarehouse.validPhotos.length > 0) {
+    // Only include photo slides if images are explicitly selected
+    const selectedWarehouseImages = selectedImages[warehouse.id] || [];
+
+    if (generatePhotoSlides && selectedWarehouseImages.length > 0) {
+      await generatePhotoSlides(pptx, { ...enrichedWarehouse, validPhotos: selectedWarehouseImages }, optionIndex);
+    } else if (selectedWarehouseImages.length > 0) {
       logWarn('detailedPptService', 'createDetailedPptBuffer', 'Skipping photo slides - module not available', {
         warehouseId: warehouse.id,
-        photoCount: enrichedWarehouse.validPhotos.length
+        photoCount: selectedWarehouseImages.length
       });
     }
 

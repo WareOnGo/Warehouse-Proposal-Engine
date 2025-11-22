@@ -1,6 +1,42 @@
 const axios = require('axios');
 const { logError, logWarn, logInfo } = require('../utils/logger');
 
+/**
+ * Retry helper function with exponential backoff
+ * @param {Function} fn - Async function to retry
+ * @param {number} maxRetries - Maximum number of retries (default: 2)
+ * @param {number} baseDelay - Base delay in ms (default: 1000)
+ * @returns {Promise} Result of the function or null on failure
+ */
+async function retryWithBackoff(fn, maxRetries = 2, baseDelay = 1000) {
+  let lastError;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      
+      if (attempt < maxRetries) {
+        const delay = baseDelay * Math.pow(2, attempt); // Exponential backoff
+        logWarn('geospatialService', 'retryWithBackoff', `Attempt ${attempt + 1} failed, retrying in ${delay}ms`, {
+          error: error.message,
+          attempt: attempt + 1,
+          maxRetries: maxRetries + 1
+        });
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  // All retries failed
+  logError('geospatialService', 'retryWithBackoff', 'All retry attempts failed', {
+    error: lastError?.message,
+    attempts: maxRetries + 1
+  });
+  return null;
+}
+
 // Rate limiter class for API throttling
 class RateLimiter {
   constructor(requestsPerSecond) {
@@ -82,7 +118,16 @@ async function extractCoordinates(googleLocation) {
       };
     }
 
-    // Pattern 3: Direct coordinates
+    // Pattern 3: /place/lat,lon format
+    const placeMatch = googleLocation.match(/\/place\/(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+    if (placeMatch) {
+      return {
+        latitude: parseFloat(placeMatch[1]),
+        longitude: parseFloat(placeMatch[2])
+      };
+    }
+
+    // Pattern 4: Direct coordinates
     const coordMatch = googleLocation.match(/^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/);
     if (coordMatch) {
       return {
@@ -91,22 +136,37 @@ async function extractCoordinates(googleLocation) {
       };
     }
 
-    // Pattern 4: Shortened goo.gl URLs - follow redirect to get full URL
+    // Pattern 5: Shortened goo.gl URLs - follow redirect to get full URL
     if (googleLocation.includes('goo.gl') || googleLocation.includes('maps.app.goo.gl')) {
       try {
         const response = await axiosInstance.get(googleLocation, {
           maxRedirects: 5,
-          validateStatus: (status) => status >= 200 && status < 400
+          validateStatus: (status) => status >= 200 && status < 400,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          }
         });
-        // Recursively extract from the final URL
-        const finalUrl = response.request?.res?.responseUrl || response.config?.url || googleLocation;
+        
+        // Try multiple ways to get the final URL
+        const finalUrl = response.request?.res?.responseUrl || 
+                        response.request?.path || 
+                        response.headers?.location ||
+                        response.config?.url || 
+                        googleLocation;
+        
+        logInfo('geospatialService', 'extractCoordinates', 'Resolved shortened URL', {
+          originalUrl: googleLocation,
+          finalUrl: finalUrl
+        });
+        
         if (finalUrl !== googleLocation) {
           return extractCoordinates(finalUrl);
         }
       } catch (error) {
         logError('geospatialService', 'extractCoordinates', 'Failed to resolve shortened URL', {
           url: googleLocation,
-          error: error.message
+          error: error.message,
+          errorCode: error.code
         });
         return null;
       }
@@ -163,7 +223,7 @@ async function findNearestAirport(lat, lon) {
     return cached;
   }
 
-  try {
+  const result = await retryWithBackoff(async () => {
     await rateLimiter.throttle();
 
     // Use Nominatim reverse geocoding to search for airports
@@ -235,15 +295,13 @@ async function findNearestAirport(lat, lon) {
 
     cache.set(cacheKey, nearest);
     return nearest;
-  } catch (error) {
-    logError('geospatialService', 'findNearestAirport', 'Error finding nearest airport', {
-      lat,
-      lon,
-      error: error.message,
-      stack: error.stack
-    });
-    return null;
+  });
+
+  if (result === null) {
+    cache.set(cacheKey, null);
   }
+  
+  return result;
 }
 
 /**
@@ -259,7 +317,7 @@ async function findNearestHighway(lat, lon) {
     return cached;
   }
 
-  try {
+  const result = await retryWithBackoff(async () => {
     await rateLimiter.throttle();
 
     // Search for National Highways (NH) and State Highways (SH) within 100km
@@ -346,15 +404,13 @@ async function findNearestHighway(lat, lon) {
 
     cache.set(cacheKey, nearest);
     return nearest;
-  } catch (error) {
-    logError('geospatialService', 'findNearestHighway', 'Error finding nearest highway', {
-      lat,
-      lon,
-      error: error.message,
-      stack: error.stack
-    });
-    return null;
+  });
+
+  if (result === null) {
+    cache.set(cacheKey, null);
   }
+  
+  return result;
 }
 
 /**
@@ -370,7 +426,7 @@ async function findNearestRailwayStation(lat, lon) {
     return cached;
   }
 
-  try {
+  const result = await retryWithBackoff(async () => {
     await rateLimiter.throttle();
 
     // Simplified query - search for railway stations within 100km
@@ -416,15 +472,13 @@ async function findNearestRailwayStation(lat, lon) {
 
     cache.set(cacheKey, nearest);
     return nearest;
-  } catch (error) {
-    logError('geospatialService', 'findNearestRailwayStation', 'Error finding nearest railway station', {
-      lat,
-      lon,
-      error: error.message,
-      stack: error.stack
-    });
-    return null;
+  });
+
+  if (result === null) {
+    cache.set(cacheKey, null);
   }
+  
+  return result;
 }
 
 /**

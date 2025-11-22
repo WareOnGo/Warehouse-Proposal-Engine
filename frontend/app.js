@@ -58,8 +58,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // Update info banner based on PPT type
             if (selectedPptType === 'detailed') {
                 pptTypeInfo.className = 'info-banner detailed';
-                pptTypeInfo.innerHTML = '<strong>📊 Detailed Presentation Selected</strong><br>All warehouse photos will be automatically included. The presentation will contain geospatial data, distance highlights, technical details, commercials, and satellite imagery. Generation may take 10-60 seconds per warehouse.';
-                imageSelectionInstruction.style.display = 'none';
+                pptTypeInfo.innerHTML = '<strong>📊 Detailed Presentation Selected</strong><br>First 4 images are auto-selected. Click to select/deselect any number of images. The presentation will contain geospatial data, distance highlights, technical details, commercials, and satellite imagery. Generation may take 10-60 seconds per warehouse.';
+                imageSelectionInstruction.style.display = 'block';
             } else {
                 pptTypeInfo.className = 'info-banner standard';
                 pptTypeInfo.innerHTML = '<strong>📄 Standard Presentation Selected</strong><br>Select up to 4 images per warehouse for the presentation.';
@@ -88,34 +88,39 @@ document.addEventListener('DOMContentLoaded', () => {
                     const imageUrls = allUrls.filter(url => /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url));
 
                     if (imageUrls.length > 0) {
-                        imageUrls.forEach(url => {
+                        imageUrls.forEach((url, index) => {
                             const img = document.createElement('img');
                             img.src = url;
                             img.alt = 'Warehouse Photo';
                             img.dataset.url = url;
                             
-                            // For detailed PPT, show all images but make them non-selectable
-                            if (selectedPptType === 'detailed') {
-                                img.className = 'preview-image';
-                            } else {
-                                img.className = 'selectable-image';
+                            // Make images selectable for both standard and detailed PPT
+                            img.className = 'selectable-image';
+                            
+                            // For detailed PPT, auto-select first 4 images by default
+                            if (selectedPptType === 'detailed' && index < 4) {
+                                img.classList.add('selected');
+                            }
+                            
+                            // Add click logic for image selection
+                            img.addEventListener('click', (event) => {
+                                const clickedImage = event.currentTarget;
+                                const parentCard = clickedImage.closest('.warehouse-card');
+                                const selectedImagesInCard = parentCard.querySelectorAll('.selectable-image.selected');
                                 
-                                // Add click logic for standard PPT only
-                                img.addEventListener('click', (event) => {
-                                    const clickedImage = event.currentTarget;
-                                    const parentCard = clickedImage.closest('.warehouse-card');
-                                    const selectedImagesInCard = parentCard.querySelectorAll('.selectable-image.selected');
-                                    
+                                // For standard PPT, limit to 4 images per warehouse
+                                // For detailed PPT, allow unlimited selection
+                                if (selectedPptType === 'standard') {
                                     // Check if the user is trying to select a new image AND the limit is already reached
                                     if (!clickedImage.classList.contains('selected') && selectedImagesInCard.length >= 4) {
                                         alert('You can only select a maximum of 4 images per warehouse.');
                                         return; // Prevent selecting the 5th image
                                     }
-                                    
-                                    // Otherwise, toggle the selection as usual
-                                    clickedImage.classList.toggle('selected');
-                                });
-                            }
+                                }
+                                
+                                // Toggle the selection
+                                clickedImage.classList.toggle('selected');
+                            });
 
                             gallery.appendChild(img);
                         });
@@ -150,10 +155,20 @@ document.addEventListener('DOMContentLoaded', () => {
         let endpoint, requestBody, filename;
 
         if (selectedPptType === 'detailed') {
-            // Detailed PPT - no image selection needed
+            // Detailed PPT - with selected images
+            const selectedImages = {};
+            document.querySelectorAll('.warehouse-card').forEach(card => {
+                const warehouseId = card.dataset.warehouseId;
+                const selectedInCard = card.querySelectorAll('.selectable-image.selected');
+                if (selectedInCard.length > 0) {
+                    selectedImages[warehouseId] = Array.from(selectedInCard).map(img => img.dataset.url);
+                }
+            });
+
             endpoint = `${API_BASE_URL}/api/generate-detailed-ppt`;
             requestBody = {
                 ids: currentWarehouseIds,
+                selectedImages: selectedImages,
                 customDetails: {
                     companyName: clientNameInput.value.trim(),
                     employeeName: pocNameInput.value.trim()
