@@ -78,7 +78,12 @@ const generatePresentation = async (req, res) => {
         // Call the PPT service to get the presentation buffer
         const buffer = await pptService.createPptBuffer(warehouses, selectedImages, customDetails);
 
-        res.setHeader('Content-Disposition', `attachment; filename="Warehouses_${warehouseIds.join('_')}.pptx"`);
+        logInfo('warehouseController', 'generatePresentation', 'Successfully generated standard presentation', {
+            warehouseIds,
+            bufferSize: buffer.length,
+            customDetails: customDetails
+        });
+
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
         res.send(buffer);
     } catch (error) {
@@ -126,11 +131,11 @@ const generateDetailedPresentation = async (req, res) => {
 
         logInfo('warehouseController', 'generateDetailedPresentation', 'Successfully generated detailed presentation', {
             warehouseIds,
-            bufferSize: buffer.length
+            bufferSize: buffer.length,
+            customDetails: customDetails
         });
-
-        // Set response headers (Content-Disposition, Content-Type)
-        res.setHeader('Content-Disposition', `attachment; filename="Detailed_Warehouses_${warehouseIds.join('_')}.pptx"`);
+        
+        // Set response headers
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
         
         // Send presentation buffer

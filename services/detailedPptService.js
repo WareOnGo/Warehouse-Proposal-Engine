@@ -139,11 +139,11 @@ async function enrichWarehouseWithGeospatialData(warehouse) {
       hasRailway: !!nearestRailway
     });
 
-    // Fetch satellite image URL with higher zoom level for more detail
+    // Fetch satellite image URL with moderate zoom level for context
     enrichedWarehouse.geospatial.satelliteImageUrl = geospatialService.fetchSatelliteImageUrl(
       coordinates.latitude,
       coordinates.longitude,
-      17 // Higher zoom level for closer view
+      16 // Moderate zoom level for 500m radius context
     );
 
     logInfo('detailedPptService', 'enrichWarehouseWithGeospatialData', 'Satellite image URL generated', {

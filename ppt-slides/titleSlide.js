@@ -8,8 +8,8 @@ function generateTitleSlide(pptx, warehouse, customDetails) {
         x: 5.35, y: 1.8, w: 2.0, h: 2.0,
     });
 
-    // Use client name from form, or a default
-    const clientName = customDetails.clientName || 'Client Name';
+    // Use client name from form (support both clientName and companyName), or a default
+    const clientName = customDetails.clientName || customDetails.companyName || 'Client Name';
     titleSlide.addText(`Warehouse options for ${clientName}`, { x: 0.5, y: 4.2, w: '90%', h: 0.5, fontFace: 'Arial', fontSize: 24, bold: true, align: 'center', color: '000000' });
 
     // Use client requirement from form, or a default

@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_BASE_URL = 'http://localhost:3001'; // Or your deployed Render URL
     let currentWarehouseIds = null;
     let selectedPptType = 'standard'; // Default to standard
-    
+
     // --- Get selected PPT type ---
     function getSelectedPptType() {
         const selectedRadio = document.querySelector('input[name="ppt-type"]:checked');
@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pocNameInput.value = '';
         pocContactInput.value = '';
     });
-    
+
     // --- Step 1: Fetch and Display Warehouse Data ---
     fetchButton.addEventListener('click', async () => {
         const warehouseIds = warehouseIdInput.value.trim();
@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const gallery = document.createElement('div');
                 gallery.className = 'image-gallery';
-                
+
                 if (warehouse.photos && warehouse.photos.length > 0) {
                     const allUrls = warehouse.photos.split(',').map(url => url.trim());
                     const imageUrls = allUrls.filter(url => /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url));
@@ -93,21 +93,21 @@ document.addEventListener('DOMContentLoaded', () => {
                             img.src = url;
                             img.alt = 'Warehouse Photo';
                             img.dataset.url = url;
-                            
+
                             // Make images selectable for both standard and detailed PPT
                             img.className = 'selectable-image';
-                            
+
                             // For detailed PPT, auto-select first 4 images by default
                             if (selectedPptType === 'detailed' && index < 4) {
                                 img.classList.add('selected');
                             }
-                            
+
                             // Add click logic for image selection
                             img.addEventListener('click', (event) => {
                                 const clickedImage = event.currentTarget;
                                 const parentCard = clickedImage.closest('.warehouse-card');
                                 const selectedImagesInCard = parentCard.querySelectorAll('.selectable-image.selected');
-                                
+
                                 // For standard PPT, limit to 4 images per warehouse
                                 // For detailed PPT, allow unlimited selection
                                 if (selectedPptType === 'standard') {
@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                         return; // Prevent selecting the 5th image
                                     }
                                 }
-                                
+
                                 // Toggle the selection
                                 clickedImage.classList.toggle('selected');
                             });
@@ -133,10 +133,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 card.appendChild(gallery);
                 detailsContainer.appendChild(card);
             });
-            
+
             inputSection.style.display = 'none';
             previewSection.style.display = 'block';
-            
+
             if (selectedPptType === 'detailed') {
                 statusMessage.textContent = `Showing details for Warehouse IDs: ${currentWarehouseIds}. All photos will be included automatically.`;
             } else {
@@ -171,10 +171,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectedImages: selectedImages,
                 customDetails: {
                     companyName: clientNameInput.value.trim(),
-                    employeeName: pocNameInput.value.trim()
+                    employeeName: pocNameInput.value.trim(),
+                    clientRequirement: clientRequirementInput.value.trim()
                 }
             };
-            filename = `Detailed_Warehouses_${currentWarehouseIds.replace(/, /g, '_')}.pptx`;
+
+            // Debug: Log what we're sending
+            console.log('Detailed PPT Request Body:', requestBody);
+
+            // Generate filename based on client details
+            const clientName = clientNameInput.value.trim();
+            const requirement = clientRequirementInput.value.trim();
+
+            if (clientName && clientName.length > 0) {
+                const reqText = requirement && requirement.length > 0 ? requirement : 'Requirement';
+                filename = `WH options for ${clientName}_${reqText}.pptx`;
+            } else {
+                filename = `Detailed_Warehouses_${currentWarehouseIds.replace(/, /g, '_')}.pptx`;
+            }
             statusMessage.textContent = 'Generating detailed presentation with geospatial data, please wait... This may take 10-60 seconds per warehouse.';
         } else {
             // Standard PPT - with selected images
@@ -198,7 +212,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     pocContact: pocContactInput.value.trim()
                 }
             };
-            filename = `Warehouses_${currentWarehouseIds.replace(/, /g, '_')}.pptx`;
+
+            // Debug: Log what we're sending
+            console.log('Standard PPT Request Body:', requestBody);
+
+            // Generate filename based on client details
+            const clientName = clientNameInput.value.trim();
+            const requirement = clientRequirementInput.value.trim();
+
+            if (clientName && clientName.length > 0) {
+                const reqText = requirement && requirement.length > 0 ? requirement : 'Requirement';
+                filename = `WH options for ${clientName}_${reqText}.pptx`;
+            } else {
+                filename = `Warehouses_${currentWarehouseIds.replace(/, /g, '_')}.pptx`;
+            }
             statusMessage.textContent = 'Generating standard presentation, please wait...';
         }
 
@@ -210,20 +237,31 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || `Server responded with status ${response.status}`);
+                let errorMessage = `Server responded with status ${response.status}`;
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error || errorMessage;
+                } catch (e) {
+                    // If JSON parsing fails, try to get text
+                    const errorText = await response.text();
+                    errorMessage = errorText.substring(0, 200) || errorMessage;
+                }
+                throw new Error(errorMessage);
             }
 
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
+
+            // Use the filename generated by frontend
+            console.log('Using filename:', filename);
             link.setAttribute('download', filename);
             document.body.appendChild(link);
             link.click();
             link.remove();
             window.URL.revokeObjectURL(url);
-            
+
             statusMessage.textContent = `Success! Your ${selectedPptType} presentation download has started.`;
             previewSection.style.display = 'none';
             inputSection.style.display = 'block';

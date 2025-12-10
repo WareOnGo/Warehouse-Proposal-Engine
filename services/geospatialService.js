@@ -118,6 +118,15 @@ async function extractCoordinates(googleLocation) {
       };
     }
 
+    // Pattern 2.5: Google Maps data parameters !3d(lat)!4d(lon)
+    const dataMatch = googleLocation.match(/!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/);
+    if (dataMatch) {
+      return {
+        latitude: parseFloat(dataMatch[1]),
+        longitude: parseFloat(dataMatch[2])
+      };
+    }
+
     // Pattern 3: /place/lat,lon format
     const placeMatch = googleLocation.match(/\/place\/(-?\d+\.?\d*),(-?\d+\.?\d*)/);
     if (placeMatch) {
