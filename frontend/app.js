@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pptTypeInfo = document.getElementById('ppt-type-info');
     const imageSelectionInstruction = document.getElementById('image-selection-instruction');
 
-    const API_BASE_URL = 'https://warehouse-proposal-engine-o1sc.onrender.com'; // Or your deployed Render URL
+    const API_BASE_URL = 'https://warehouse-proposal-engine.onrender.com'; // Or your deployed Render URL
     let currentWarehouseIds = null;
     let selectedPptType = 'standard'; // Default to standard
 

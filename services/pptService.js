@@ -16,13 +16,14 @@ const createPptBuffer = async (warehouses, selectedImages, customDetails) => {
     // Generate index slide after title slide and before warehouse detail slides
     generateIndexSlide(pptx, warehouses);
 
-    // Use a for...of loop to properly handle async operations in generateMainSlide
-    let optionCounter = 1;
-    for (const warehouse of warehouses) {
-        const selectedWarehouseImages = selectedImages[warehouse.id] || [];
-        await generateMainSlide(pptx, warehouse, selectedWarehouseImages, optionCounter);
-        optionCounter++;
-    }
+    // Generate all warehouse slides in parallel
+    await Promise.all(
+        warehouses.map((warehouse, index) => {
+            const selectedWarehouseImages = selectedImages[warehouse.id] || [];
+            const optionIndex = index + 1; // 1-based indexing for slide numbers
+            return generateMainSlide(pptx, warehouse, selectedWarehouseImages, optionIndex);
+        })
+    );
 
     generateContactSlide(pptx, customDetails);
 

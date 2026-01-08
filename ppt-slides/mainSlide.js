@@ -71,20 +71,23 @@ async function generateMainSlide(pptx, warehouse, selectedPhotoUrls, optionIndex
             const availableSpaceY = 5.625; // Full slide height
             const startYTwoImages = (offsetY - 0.05) + (availableSpaceY - twoImgHeight) / 2;
 
-            await addImageToSlide(photoUrls[0], {
-                x: startXTwoImages,
-                y: startYTwoImages,
-                w: twoImgWidth,
-                h: twoImgHeight,
-                sizing: { type: 'cover', w: twoImgWidth, h: twoImgHeight }
-            });
-            await addImageToSlide(photoUrls[1], {
-                x: startXTwoImages + twoImgWidth + twoImgPadding,
-                y: startYTwoImages,
-                w: twoImgWidth,
-                h: twoImgHeight,
-                sizing: { type: 'cover', w: twoImgWidth, h: twoImgHeight }
-            });
+            // Download both images in parallel
+            await Promise.all([
+                addImageToSlide(photoUrls[0], {
+                    x: startXTwoImages,
+                    y: startYTwoImages,
+                    w: twoImgWidth,
+                    h: twoImgHeight,
+                    sizing: { type: 'cover', w: twoImgWidth, h: twoImgHeight }
+                }),
+                addImageToSlide(photoUrls[1], {
+                    x: startXTwoImages + twoImgWidth + twoImgPadding,
+                    y: startYTwoImages,
+                    w: twoImgWidth,
+                    h: twoImgHeight,
+                    sizing: { type: 'cover', w: twoImgWidth, h: twoImgHeight }
+                })
+            ]);
             break;
         case 3:
             // Layout for 3 images: Larger, bottom images taller, shifted 1 inch left.
@@ -98,27 +101,30 @@ async function generateMainSlide(pptx, warehouse, selectedPhotoUrls, optionIndex
             const currentOffsetX = 1.5; // Assuming offsetX is 1.0 from previous instruction
             const newOffsetX = currentOffsetX - 1.0; // Shift 1 inch left
 
-            await addImageToSlide(photoUrls[0], {
-                x: 4.8 + newOffsetX,
-                y: -0.1 + offsetY,
-                w: threeImgW,
-                h: threeImgTopH,
-                sizing: { type: 'contain', w: threeImgW, h: threeImgTopH }
-            });
-            await addImageToSlide(photoUrls[1], {
-                x: 4.8 + newOffsetX,
-                y: -0.1 + offsetY + threeImgTopH + threeImgPadding,
-                w: threeImgBotW,
-                h: threeImgBotH,
-                sizing: { type: 'contain', w: threeImgBotW, h: threeImgBotH }
-            });
-            await addImageToSlide(photoUrls[2], {
-                x: 4.8 + newOffsetX + threeImgBotW + threeImgPadding,
-                y: -0.1 + offsetY + threeImgTopH + threeImgPadding,
-                w: threeImgBotW,
-                h: threeImgBotH,
-                sizing: { type: 'contain', w: threeImgBotW, h: threeImgBotH }
-            });
+            // Download all 3 images in parallel
+            await Promise.all([
+                addImageToSlide(photoUrls[0], {
+                    x: 4.8 + newOffsetX,
+                    y: -0.1 + offsetY,
+                    w: threeImgW,
+                    h: threeImgTopH,
+                    sizing: { type: 'contain', w: threeImgW, h: threeImgTopH }
+                }),
+                addImageToSlide(photoUrls[1], {
+                    x: 4.8 + newOffsetX,
+                    y: -0.1 + offsetY + threeImgTopH + threeImgPadding,
+                    w: threeImgBotW,
+                    h: threeImgBotH,
+                    sizing: { type: 'contain', w: threeImgBotW, h: threeImgBotH }
+                }),
+                addImageToSlide(photoUrls[2], {
+                    x: 4.8 + newOffsetX + threeImgBotW + threeImgPadding,
+                    y: -0.1 + offsetY + threeImgTopH + threeImgPadding,
+                    w: threeImgBotW,
+                    h: threeImgBotH,
+                    sizing: { type: 'contain', w: threeImgBotW, h: threeImgBotH }
+                })
+            ]);
             break;
 
         case 0:
@@ -141,16 +147,19 @@ async function generateMainSlide(pptx, warehouse, selectedPhotoUrls, optionIndex
                 { x: startX_four + fourImgWidth + padding_four, y: startY_four + fourImgHeight + padding_four }
             ];
 
+            // Download all images in parallel
+            const imagePromises = [];
             for (let i = 0; i < 4; i++) {
                 if (photoUrls[i]) {
-                    await addImageToSlide(photoUrls[i], {
-                        x: imagePositions[i].x,
-                        y: imagePositions[i].y,
-                        w: fourImgWidth,
-                        h: fourImgHeight,
-                        // THIS IS THE FIX: Changed 'cover' to 'contain'
-                        sizing: { type: 'contain', w: fourImgWidth, h: fourImgHeight }
-                    });
+                    imagePromises.push(
+                        addImageToSlide(photoUrls[i], {
+                            x: imagePositions[i].x,
+                            y: imagePositions[i].y,
+                            w: fourImgWidth,
+                            h: fourImgHeight,
+                            sizing: { type: 'contain', w: fourImgWidth, h: fourImgHeight }
+                        })
+                    );
                 } else {
                     mainSlide.addShape(pptx.shapes.RECTANGLE, {
                         x: imagePositions[i].x,
@@ -161,6 +170,7 @@ async function generateMainSlide(pptx, warehouse, selectedPhotoUrls, optionIndex
                     });
                 }
             }
+            await Promise.all(imagePromises);
             break;
     }
 }
