@@ -7,7 +7,7 @@ const { generateMainSlide } = require('../ppt-slides/mainSlide');
 const { generateContactSlide } = require('../ppt-slides/contactSlide');
 
 // Creates the complete presentation and returns it as a buffer
-const createPptBuffer = async (warehouses, selectedImages, customDetails) => {
+const createPptBuffer = async (warehouses, selectedImages, customDetails, includeLocation = false) => {
     let pptx = new PptxGenJS();
     pptx.layout = 'LAYOUT_WIDE';
 
@@ -21,7 +21,7 @@ const createPptBuffer = async (warehouses, selectedImages, customDetails) => {
         warehouses.map((warehouse, index) => {
             const selectedWarehouseImages = selectedImages[warehouse.id] || [];
             const optionIndex = index + 1; // 1-based indexing for slide numbers
-            return generateMainSlide(pptx, warehouse, selectedWarehouseImages, optionIndex);
+            return generateMainSlide(pptx, warehouse, selectedWarehouseImages, optionIndex, includeLocation);
         })
     );
 

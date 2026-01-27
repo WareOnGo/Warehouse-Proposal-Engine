@@ -1,7 +1,7 @@
 // ppt-slides/mainSlide.js
 const axios = require('axios');
 
-async function generateMainSlide(pptx, warehouse, selectedPhotoUrls, optionIndex) {
+async function generateMainSlide(pptx, warehouse, selectedPhotoUrls, optionIndex, includeLocation = false) {
     const mainSlide = pptx.addSlide();
     mainSlide.background = { color: 'FFFFFF' };
 
@@ -15,7 +15,21 @@ async function generateMainSlide(pptx, warehouse, selectedPhotoUrls, optionIndex
     const tableOptions = { x: 0.2, w: 3.1, border: { type: 'solid', pt: 1, color: 'CCCCCC' }, fill: { color: 'E9E9E9' }, fontSize: 9, colW: [1.3, 1.8], margin: 0.1, valign: 'middle' };
     mainSlide.addText('Property Information', { x: 0.2, y: textY, w: 3.0, fontFace: 'Arial', fontSize: 11, color: '0077CC', bold: true });
     textY += 0.25;
-    const propInfoData = [[{ text: 'Warehouse ID', options: { bold: true } }, `${warehouse.id}`], [{ text: 'Address', options: { bold: true } }, warehouse.address]];
+    
+    // Build Property Information data - conditionally include Google Maps if includeLocation is true
+    let propInfoData = [
+        [{ text: 'Warehouse ID', options: { bold: true } }, `${warehouse.id}`], 
+        [{ text: 'Address', options: { bold: true } }, warehouse.address]
+    ];
+    
+    if (includeLocation) {
+        // Prepare Google Maps link or fallback text
+        const googleMapsCell = warehouse.googleLocation 
+            ? { text: 'View on Google Maps', options: { hyperlink: { url: warehouse.googleLocation }, color: '0077CC', underline: true } }
+            : 'Available on request';
+        propInfoData.push([{ text: 'Google Maps', options: { bold: true } }, googleMapsCell]);
+    }
+    
     mainSlide.addTable(propInfoData, { ...tableOptions, y: textY, rowH: 0.4 });
     textY += (propInfoData.length * 0.4) + 0.3;
     mainSlide.addText('Specifications', { x: 0.2, y: textY, w: 3.0, fontFace: 'Arial', fontSize: 11, color: '0077CC', bold: true });
@@ -25,7 +39,23 @@ async function generateMainSlide(pptx, warehouse, selectedPhotoUrls, optionIndex
     textY += (specsData.length * 0.35) + 0.3;
     mainSlide.addText('Commercials', { x: 0.2, y: textY, w: 3.0, fontFace: 'Arial', fontSize: 11, color: '0077CC', bold: true });
     textY += 0.25;
-    const commercialsData = [[{ text: 'Rent per sq.ft (INR)', options: { bold: true } }, warehouse.ratePerSqft || 'N/A'], [{ text: 'Security Deposit', options: { bold: true } }, 'Available on Request'], [{ text: 'Availability', options: { bold: true } }, warehouse.availability || 'N/A']];
+    
+    // Conditionally build commercials data based on includeLocation flag
+    let commercialsData;
+    if (includeLocation) {
+        // When location is included in Property Info, remove Security Deposit from Commercials
+        commercialsData = [
+            [{ text: 'Rent per sq.ft (INR)', options: { bold: true } }, warehouse.ratePerSqft || 'N/A'], 
+            [{ text: 'Availability', options: { bold: true } }, warehouse.availability || 'N/A']
+        ];
+    } else {
+        commercialsData = [
+            [{ text: 'Rent per sq.ft (INR)', options: { bold: true } }, warehouse.ratePerSqft || 'N/A'], 
+            [{ text: 'Security Deposit', options: { bold: true } }, 'Available on Request'], 
+            [{ text: 'Availability', options: { bold: true } }, warehouse.availability || 'N/A']
+        ];
+    }
+    
     mainSlide.addTable(commercialsData, { ...tableOptions, y: textY, rowH: 0.35 });
 
 

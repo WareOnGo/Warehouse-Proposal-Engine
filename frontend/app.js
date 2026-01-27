@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pptTypeInfo = document.getElementById('ppt-type-info');
     const imageSelectionInstruction = document.getElementById('image-selection-instruction');
 
-    const API_BASE_URL = 'https://warehouse-proposal-engine.onrender.com'; // Or your deployed Render URL
+    const API_BASE_URL = 'http://localhost:3001'; // Or your deployed Render URL
     let currentWarehouseIds = null;
     let selectedPptType = 'standard'; // Default to standard
 
@@ -59,6 +59,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (selectedPptType === 'detailed') {
                 pptTypeInfo.className = 'info-banner detailed';
                 pptTypeInfo.innerHTML = '<strong>📊 Detailed Presentation Selected</strong><br>First 4 images are auto-selected. Click to select/deselect any number of images. The presentation will contain geospatial data, distance highlights, technical details, commercials, and satellite imagery. Generation may take 10-60 seconds per warehouse.';
+                imageSelectionInstruction.style.display = 'block';
+            } else if (selectedPptType === 'standard-with-location') {
+                pptTypeInfo.className = 'info-banner standard';
+                pptTypeInfo.innerHTML = '<strong>�  Standard Presentation with Location Selected</strong><br>Select up to 4 images per warehouse. Google Maps link will be shown instead of security deposit.';
                 imageSelectionInstruction.style.display = 'block';
             } else {
                 pptTypeInfo.className = 'info-banner standard';
@@ -108,9 +112,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                 const parentCard = clickedImage.closest('.warehouse-card');
                                 const selectedImagesInCard = parentCard.querySelectorAll('.selectable-image.selected');
 
-                                // For standard PPT, limit to 4 images per warehouse
+                                // For standard PPT and standard-with-location, limit to 4 images per warehouse
                                 // For detailed PPT, allow unlimited selection
-                                if (selectedPptType === 'standard') {
+                                if (selectedPptType === 'standard' || selectedPptType === 'standard-with-location') {
                                     // Check if the user is trying to select a new image AND the limit is already reached
                                     if (!clickedImage.classList.contains('selected') && selectedImagesInCard.length >= 4) {
                                         alert('You can only select a maximum of 4 images per warehouse.');
@@ -191,7 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             statusMessage.textContent = 'Generating detailed presentation with geospatial data, please wait... This may take 10-60 seconds per warehouse.';
         } else {
-            // Standard PPT - with selected images
+            // Standard PPT (with or without location) - with selected images
             const selectedImages = {};
             document.querySelectorAll('.warehouse-card').forEach(card => {
                 const warehouseId = card.dataset.warehouseId;
@@ -205,6 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
             requestBody = {
                 ids: currentWarehouseIds,
                 selectedImages: selectedImages,
+                includeLocation: selectedPptType === 'standard-with-location',
                 customDetails: {
                     clientName: clientNameInput.value.trim(),
                     clientRequirement: clientRequirementInput.value.trim(),

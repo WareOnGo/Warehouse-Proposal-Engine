@@ -53,7 +53,7 @@ const getWarehouses = async (req, res) => {
 
 // Controller for the POST /api/generate-ppt endpoint
 const generatePresentation = async (req, res) => {
-    const { ids, selectedImages = {}, customDetails = {} } = req.body;
+    const { ids, selectedImages = {}, customDetails = {}, includeLocation = false } = req.body;
     const warehouseIds = parseIds(ids);
     if (warehouseIds.length === 0) {
         logWarn('warehouseController', 'generatePresentation', 'Invalid or no warehouse IDs provided', {
@@ -72,16 +72,18 @@ const generatePresentation = async (req, res) => {
         
         logInfo('warehouseController', 'generatePresentation', 'Generating presentation', {
             warehouseIds,
-            warehouseCount: warehouses.length
+            warehouseCount: warehouses.length,
+            includeLocation
         });
         
         // Call the PPT service to get the presentation buffer
-        const buffer = await pptService.createPptBuffer(warehouses, selectedImages, customDetails);
+        const buffer = await pptService.createPptBuffer(warehouses, selectedImages, customDetails, includeLocation);
 
         logInfo('warehouseController', 'generatePresentation', 'Successfully generated standard presentation', {
             warehouseIds,
             bufferSize: buffer.length,
-            customDetails: customDetails
+            customDetails: customDetails,
+            includeLocation
         });
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
