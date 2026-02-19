@@ -10,15 +10,15 @@ const { logError, logWarn } = require('../utils/logger');
  */
 async function generateDetailedSlide(pptx, warehouse, optionIndex) {
   // Check if Google location (coordinates) is available
-  const hasLocation = warehouse.googleLocation && 
-                      warehouse.googleLocation.trim() !== '' &&
-                      warehouse.googleLocation !== 'N/A';
-  
+  const hasLocation = warehouse.googleLocation &&
+    warehouse.googleLocation.trim() !== '' &&
+    warehouse.googleLocation !== 'N/A';
+
   // Generate Slide 1: Location slide only if Google location is available
   if (hasLocation) {
     await generateLocationSlide(pptx, warehouse, optionIndex);
   }
-  
+
   // Generate Slide 2: Technical slide (always shown)
   await generateTechnicalSlide(pptx, warehouse, optionIndex);
 }
@@ -54,7 +54,7 @@ async function generateLocationSlide(pptx, warehouse, optionIndex) {
   // Render distance highlights and address
   currentY = renderDistanceHighlights(slide, warehouse, leftColumnX, currentY, leftColumnW);
   currentY = renderAddress(slide, warehouse, leftColumnX, currentY, leftColumnW);
-  
+
   // Add placeholder image below the tables in the left column
   renderPlaceholderImage(pptx, slide, leftColumnX, currentY, leftColumnW);
 
@@ -129,16 +129,16 @@ function renderDistanceHighlights(slide, warehouse, x, y, width) {
   // Prepare distance data
   const geospatial = warehouse.geospatial || {};
   const airportName = geospatial.nearestAirport?.name || 'N/A';
-  const airportDistance = geospatial.nearestAirport 
-    ? `${geospatial.nearestAirport.distance} km` 
+  const airportDistance = geospatial.nearestAirport
+    ? `${geospatial.nearestAirport.distance} km`
     : 'N/A';
   const highwayName = geospatial.nearestHighway?.name || 'N/A';
-  const highwayDistance = geospatial.nearestHighway 
-    ? `${geospatial.nearestHighway.distance} km` 
+  const highwayDistance = geospatial.nearestHighway
+    ? `${geospatial.nearestHighway.distance} km`
     : 'N/A';
   const railwayName = geospatial.nearestRailway?.name || 'N/A';
-  const railwayDistance = geospatial.nearestRailway 
-    ? `${geospatial.nearestRailway.distance} km` 
+  const railwayDistance = geospatial.nearestRailway
+    ? `${geospatial.nearestRailway.distance} km`
     : 'N/A';
 
   const distanceData = [
@@ -255,7 +255,7 @@ function renderTechnicalDetails(slide, warehouse, x, y, width) {
 
   // Prepare technical details data
   const warehouseData = warehouse.WarehouseData || {};
-  
+
   // Carpet area from totalSpaceSqft (join array with commas)
   const carpetArea = Array.isArray(warehouse.totalSpaceSqft)
     ? warehouse.totalSpaceSqft.join(', ') + ' sqft'
@@ -360,8 +360,8 @@ function renderCommercials(slide, warehouse, x, y, width) {
   y += 0.35;
 
   // Prepare commercials data
-  const rentPerSqft = warehouse.ratePerSqft 
-    ? `₹${warehouse.ratePerSqft}` 
+  const rentPerSqft = warehouse.ratePerSqft
+    ? `₹${warehouse.ratePerSqft}`
     : 'N/A';
 
   const commercialsData = [
@@ -435,7 +435,7 @@ function renderPlaceholderImage(pptx, slide, x, y, width) {
     fill: { color: 'F5F5F5' },
     line: { color: 'DDDDDD', width: 1 }
   });
-  
+
   slide.addText('Image placeholder', {
     x: x,
     y: y + (imageHeight / 2) - 0.25,
@@ -479,7 +479,7 @@ async function renderWarehouseImage(pptx, slide, warehouse, x, y, width) {
   if (validPhotos.length > 0) {
     try {
       const imageUrl = validPhotos[0];
-      
+
       // Download image
       const response = await axios.get(imageUrl, {
         responseType: 'arraybuffer',
@@ -490,8 +490,8 @@ async function renderWarehouseImage(pptx, slide, warehouse, x, y, width) {
       });
 
       // Detect image type
-      const imageType = imageUrl.toLowerCase().includes('.png') 
-        ? 'image/png' 
+      const imageType = imageUrl.toLowerCase().includes('.png')
+        ? 'image/png'
         : 'image/jpeg';
 
       // Convert to base64 data URL
@@ -514,7 +514,7 @@ async function renderWarehouseImage(pptx, slide, warehouse, x, y, width) {
         url: validPhotos[0],
         error: error.message
       });
-      
+
       slide.addShape(pptx.shapes.RECTANGLE, {
         x: x,
         y: y,
@@ -523,7 +523,7 @@ async function renderWarehouseImage(pptx, slide, warehouse, x, y, width) {
         fill: { color: 'F5F5F5' },
         line: { color: 'DDDDDD', width: 1 }
       });
-      
+
       slide.addText('Failed to load image', {
         x: x,
         y: y + (imageHeight / 2) - 0.25,
@@ -545,7 +545,7 @@ async function renderWarehouseImage(pptx, slide, warehouse, x, y, width) {
       fill: { color: 'F5F5F5' },
       line: { color: 'DDDDDD', width: 1 }
     });
-    
+
     slide.addText('No image available', {
       x: x,
       y: y + (imageHeight / 2) - 0.25,
@@ -561,6 +561,7 @@ async function renderWarehouseImage(pptx, slide, warehouse, x, y, width) {
 
 /**
  * Render satellite image on the right side of the slide
+ * Uses pre-downloaded Mapbox satellite image buffer
  * @param {Object} pptx - PptxGenJS instance
  * @param {Object} slide - Slide object
  * @param {Object} warehouse - Warehouse object
@@ -570,7 +571,7 @@ async function renderWarehouseImage(pptx, slide, warehouse, x, y, width) {
  */
 async function renderSatelliteImage(pptx, slide, warehouse, x, y, width) {
   const geospatial = warehouse.geospatial || {};
-  const satelliteImageUrl = geospatial.satelliteImageUrl;
+  const satelliteImage = geospatial.satelliteImage; // { imageBuffer, contentType }
   const imageHeight = 5.5; // Larger image for location slide
 
   // Add section header - aligned with image content
@@ -587,8 +588,8 @@ async function renderSatelliteImage(pptx, slide, warehouse, x, y, width) {
 
   y += 0.35;
 
-  if (!satelliteImageUrl) {
-    // Display placeholder rectangle if no image URL
+  if (!satelliteImage || !satelliteImage.imageBuffer) {
+    // Display placeholder rectangle if no image available
     slide.addShape(pptx.shapes.RECTANGLE, {
       x: x,
       y: y,
@@ -596,7 +597,7 @@ async function renderSatelliteImage(pptx, slide, warehouse, x, y, width) {
       h: imageHeight,
       fill: { color: 'E8E8E8' }
     });
-    
+
     slide.addText('Satellite image not available', {
       x: x,
       y: y + (imageHeight / 2) - 0.25,
@@ -607,8 +608,8 @@ async function renderSatelliteImage(pptx, slide, warehouse, x, y, width) {
       fontSize: 11,
       color: '999999'
     });
-    
-    logWarn('detailedSlide', 'renderSatelliteImage', 'No satellite image URL for warehouse', {
+
+    logWarn('detailedSlide', 'renderSatelliteImage', 'No satellite image for warehouse', {
       warehouseId: warehouse.id,
       latitude: geospatial.latitude,
       longitude: geospatial.longitude
@@ -617,69 +618,28 @@ async function renderSatelliteImage(pptx, slide, warehouse, x, y, width) {
   }
 
   try {
-    // Download image from URL with extended timeout
-    const response = await axios.get(satelliteImageUrl, {
-      responseType: 'arraybuffer',
-      timeout: 15000,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      }
-    });
-
-    // Detect image type - Esri tiles are typically JPEG
-    const imageType = 'image/jpeg';
-
-    // Convert to base64 data URL
-    const base64Image = `data:${imageType};base64,${Buffer.from(response.data).toString('base64')}`;
+    // Convert pre-downloaded buffer to base64 data URL
+    const contentType = satelliteImage.contentType || 'image/jpeg';
+    const base64Image = `data:${contentType};base64,${satelliteImage.imageBuffer.toString('base64')}`;
 
     // Embed image with appropriate sizing
+    // Mapbox already includes a red pin marker, so no manual overlay needed
     slide.addImage({
       data: base64Image,
       x: x,
       y: y,
       w: width,
       h: imageHeight,
-      sizing: { type: 'cover', w: width, h: imageHeight }
-    });
-
-    // Add a blue location pin marker at the center
-    const pinSize = 0.25;
-    const centerX = x + (width / 2) - (pinSize / 2);
-    const centerY = y + (imageHeight / 2) - (pinSize / 2);
-    
-    // Blue circle marker with white border (simple and effective)
-    slide.addShape(pptx.shapes.OVAL, {
-      x: centerX,
-      y: centerY,
-      w: pinSize,
-      h: pinSize,
-      fill: { color: '0066FF' },
-      line: { color: 'FFFFFF', width: 3 }
-    });
-    
-    // Add a smaller white circle in the center for pin effect
-    const innerSize = pinSize * 0.4;
-    const innerX = centerX + (pinSize - innerSize) / 2;
-    const innerY = centerY + (pinSize - innerSize) / 2;
-    
-    slide.addShape(pptx.shapes.OVAL, {
-      x: innerX,
-      y: innerY,
-      w: innerSize,
-      h: innerSize,
-      fill: { color: 'FFFFFF' },
-      line: { color: '0066FF', width: 1 }
+      sizing: { type: 'contain', w: width, h: imageHeight }
     });
 
   } catch (error) {
-    // Display placeholder rectangle if image fails to load
-    logError('detailedSlide', 'renderSatelliteImage', 'Failed to download satellite image', {
+    // Display placeholder rectangle if image embedding fails
+    logError('detailedSlide', 'renderSatelliteImage', 'Failed to embed satellite image', {
       warehouseId: warehouse.id,
-      url: satelliteImageUrl,
-      error: error.message,
-      statusCode: error.response?.status
+      error: error.message
     });
-    
+
     slide.addShape(pptx.shapes.RECTANGLE, {
       x: x,
       y: y,
@@ -687,7 +647,7 @@ async function renderSatelliteImage(pptx, slide, warehouse, x, y, width) {
       h: imageHeight,
       fill: { color: 'E8E8E8' }
     });
-    
+
     slide.addText('Failed to load satellite image', {
       x: x,
       y: y + (imageHeight / 2) - 0.25,
@@ -709,7 +669,7 @@ async function renderSatelliteImage(pptx, slide, warehouse, x, y, width) {
  */
 async function generatePhotoSlides(pptx, warehouse, optionIndex) {
   const photoUrls = warehouse.validPhotos || [];
-  
+
   if (photoUrls.length === 0) {
     return;
   }
@@ -811,7 +771,7 @@ async function renderTwoImageLayout(pptx, slide, photoUrls, warehouseId) {
   const imageWidth = 4.0;
   const imageHeight = 5.0;
   const padding = 0.2;
-  
+
   const totalWidth = (imageWidth * 2) + padding;
   const startX = (13.33 - totalWidth) / 2;
   const startY = (7.5 - imageHeight) / 2 + 0.3;
@@ -930,8 +890,8 @@ async function addImageToSlide(pptx, slide, url, options, warehouseId) {
     });
 
     // Detect image type from URL
-    const imageType = url.toLowerCase().includes('.png') 
-      ? 'image/png' 
+    const imageType = url.toLowerCase().includes('.png')
+      ? 'image/png'
       : 'image/jpeg';
 
     // Convert to base64 data URL
@@ -950,7 +910,7 @@ async function addImageToSlide(pptx, slide, url, options, warehouseId) {
       url,
       error: error.message
     });
-    
+
     slide.addShape(pptx.shapes.RECTANGLE, {
       x: options.x,
       y: options.y,

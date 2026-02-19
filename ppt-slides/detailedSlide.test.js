@@ -31,7 +31,7 @@ describe('DetailedSlide - Slide Rendering', () => {
         nearestAirport: { name: 'IGI Airport', distance: 15.2 },
         nearestHighway: { name: 'NH-48', distance: 2.5 },
         nearestRailway: { name: 'New Delhi Railway Station', distance: 8.3 },
-        satelliteImageUrl: null // Skip image download in test
+        satelliteImage: null // Skip image download in test
       },
       validPhotos: []
     };
@@ -58,7 +58,7 @@ describe('DetailedSlide - Slide Rendering', () => {
         nearestAirport: null,
         nearestHighway: null,
         nearestRailway: null,
-        satelliteImageUrl: null
+        satelliteImage: null
       },
       validPhotos: []
     };
@@ -82,7 +82,7 @@ describe('DetailedSlide - Slide Rendering', () => {
         nearestAirport: { name: 'Airport', distance: 10.0 },
         nearestHighway: null,
         nearestRailway: null,
-        satelliteImageUrl: null
+        satelliteImage: null
       },
       validPhotos: []
     };
@@ -106,7 +106,7 @@ describe('DetailedSlide - Slide Rendering', () => {
         nearestAirport: null,
         nearestHighway: null,
         nearestRailway: null,
-        satelliteImageUrl: null
+        satelliteImage: null
       },
       validPhotos: []
     };

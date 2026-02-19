@@ -90,7 +90,7 @@ async function enrichWarehouseWithGeospatialData(warehouse) {
       nearestAirport: null,
       nearestHighway: null,
       nearestRailway: null,
-      satelliteImageUrl: null
+      satelliteImage: null  // { imageBuffer, contentType } from Mapbox
     },
     validPhotos: parsePhotos(warehouse.photos)
   };
@@ -121,34 +121,29 @@ async function enrichWarehouseWithGeospatialData(warehouse) {
     enrichedWarehouse.geospatial.latitude = coordinates.latitude;
     enrichedWarehouse.geospatial.longitude = coordinates.longitude;
 
-    // Fetch geospatial data in parallel
-    const [nearestAirport, nearestHighway, nearestRailway] = await Promise.all([
+    // Fetch geospatial data and satellite image in parallel
+    const [nearestAirport, nearestHighway, nearestRailway, satelliteImage] = await Promise.all([
       geospatialService.findNearestAirport(coordinates.latitude, coordinates.longitude),
       geospatialService.findNearestHighway(coordinates.latitude, coordinates.longitude),
-      geospatialService.findNearestRailwayStation(coordinates.latitude, coordinates.longitude)
+      geospatialService.findNearestRailwayStation(coordinates.latitude, coordinates.longitude),
+      geospatialService.fetchSatelliteImageUrl(
+        coordinates.latitude,
+        coordinates.longitude,
+        16 // Moderate zoom level for context
+      )
     ]);
 
     enrichedWarehouse.geospatial.nearestAirport = nearestAirport;
     enrichedWarehouse.geospatial.nearestHighway = nearestHighway;
     enrichedWarehouse.geospatial.nearestRailway = nearestRailway;
+    enrichedWarehouse.geospatial.satelliteImage = satelliteImage;
 
     logInfo('detailedPptService', 'enrichWarehouseWithGeospatialData', 'Geospatial data fetched', {
       warehouseId: warehouse.id,
       hasAirport: !!nearestAirport,
       hasHighway: !!nearestHighway,
-      hasRailway: !!nearestRailway
-    });
-
-    // Fetch satellite image URL with moderate zoom level for context
-    enrichedWarehouse.geospatial.satelliteImageUrl = geospatialService.fetchSatelliteImageUrl(
-      coordinates.latitude,
-      coordinates.longitude,
-      16 // Moderate zoom level for 500m radius context
-    );
-
-    logInfo('detailedPptService', 'enrichWarehouseWithGeospatialData', 'Satellite image URL generated', {
-      warehouseId: warehouse.id,
-      satelliteImageUrl: enrichedWarehouse.geospatial.satelliteImageUrl
+      hasRailway: !!nearestRailway,
+      hasSatelliteImage: !!satelliteImage
     });
 
   } catch (error) {
