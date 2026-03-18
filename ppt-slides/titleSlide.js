@@ -4,8 +4,8 @@ function generateTitleSlide(pptx, warehouse, customDetails) {
     titleSlide.background = { color: 'FFFFFF' };
 
     titleSlide.addImage({
-        path: 'https://pub-94c0eb3cd2df4e71a1b6f5b73273bc71.r2.dev/Screenshot%202025-08-27%20153449.png',
-        x: 5.35, y: 1.8, w: 2.0, h: 2.0,
+        path: 'WOG_logo_Transparent.png',
+        x: 4.5, y: 0.9, w: 4.0, h: 4.0,
     });
 
     // Use client name from form (support both clientName and companyName), or a default
