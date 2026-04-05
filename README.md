@@ -66,8 +66,14 @@ To set up the project for local development, follow these steps:
     # Your PostgreSQL connection string from Supabase
     DATABASE_URL="postgresql://postgres:[YOUR-PASSWORD]@[YOUR-HOST]:5432/postgres"
 
-    # The URL of your deployed frontend (for CORS)
+    # Preferred: comma-separated list of allowed frontend origins (for CORS)
+    FRONTEND_URLS="http://localhost:5173,https://your-frontend-service-url.netlify.app"
+
+    # Optional single origin (backward compatibility)
     FRONTEND_URL="https://your-frontend-service-url.netlify.app"
+
+    # Optional convenience var for local frontend dev server
+    LOCAL_FRONTEND_URL="http://localhost:5173"
     ```
 
 4.  **Generate Prisma Client:**
@@ -138,5 +144,5 @@ The backend server exposes the following API endpoints:
 
 ## Deployment
 
-  * **Backend:** The Node.js application is configured for deployment on services like **Render**. Ensure the **Build Command** is set to `npm install && npx prisma generate` and all required environment variables (`DATABASE_URL`, `FRONTEND_URL`) are configured in the Render dashboard.
+  * **Backend:** The Node.js application is configured for deployment on services like **Render**. Ensure the **Build Command** is set to `npm install && npx prisma generate` and configure required environment variables (`DATABASE_URL`) plus your CORS origin variables (`FRONTEND_URLS` preferred, or `FRONTEND_URL`/`LOCAL_FRONTEND_URL`).
   * **Frontend:** The static frontend can be deployed on services like **Netlify**, **Vercel**, or **Render Static Sites**. Set the **Publish Directory** to the name of your frontend folder.

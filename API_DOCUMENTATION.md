@@ -1,37 +1,64 @@
-# Warehouse PPT Service - API Documentation
+# Warehouse Proposal Engine API Documentation
 
-## Overview
+Last updated: 2026-04-05  
+Scope: Current behavior implemented in `server.js`, `routes/warehouseRoutes.js`, `controllers/warehouseController.js`, and related services.
 
-The Warehouse PPT Service is a Node.js/Express API that generates PowerPoint presentations from warehouse data stored in a PostgreSQL database. It provides two types of presentations:
+## Quick Facts
 
-1. **Standard Presentation** - Basic warehouse information with selected images
-2. **Detailed Presentation** - Comprehensive warehouse data with geospatial information, distance highlights, technical details, commercials, satellite imagery, and photo galleries
+- Base URL (local): `http://localhost:3001`
+- Auth: none
+- Content type for PPT endpoints: binary `.pptx`
+- Global server timeout: 10 minutes
+- Detailed PPT route timeout middleware: 10 minutes
+- CORS allowed origins:
+  - `'null'` (local file usage)
+  - `process.env.FRONTEND_URLS` (comma-separated, preferred)
+  - `process.env.FRONTEND_URL` (single origin, backward compatibility)
+  - `process.env.LOCAL_FRONTEND_URL` (optional local dev origin)
 
-## Base URL
+## Environment Variables
 
+Required:
+
+```bash
+DATABASE_URL=postgresql://...
 ```
-http://localhost:3001
+
+Optional but important:
+
+```bash
+PORT=3001
+FRONTEND_URLS=http://localhost:5173,https://your-frontend-domain.com
+FRONTEND_URL=https://your-frontend-domain.com
+LOCAL_FRONTEND_URL=http://localhost:5173
+MAPBOX_ACCESS_TOKEN=pk....
+DEBUG=true
 ```
 
-## Authentication
+Notes:
 
-Currently, no authentication is required. The API is designed for internal use.
+- `MAPBOX_ACCESS_TOKEN` is required for satellite images and geocoding fallback in detailed PPT flow.
+- If `MAPBOX_ACCESS_TOKEN` is missing, detailed PPT still generates, but map/geospatial visuals may degrade to placeholders/N/A.
+
+## API Index
+
+1. `GET /health`
+2. `GET /api/warehouses?ids=...`
+3. `POST /api/generate-ppt`
+4. `POST /api/generate-detailed-ppt`
 
 ---
 
-## Endpoints
+## 1) Health Check
 
-### 1. Health Check
+### Request
 
-Check the health status of the server and database connection.
+`GET /health`
 
-**Endpoint:** `GET /health`
+### Success Response
 
-**Response Codes:**
-- `200 OK` - Server and database are healthy
-- `503 Service Unavailable` - Database connection failed
+`200 OK`
 
-**Response Body (Success):**
 ```json
 {
   "status": "ok",
@@ -39,7 +66,10 @@ Check the health status of the server and database connection.
 }
 ```
 
-**Response Body (Error):**
+### Error Response
+
+`503 Service Unavailable`
+
 ```json
 {
   "status": "error",
@@ -49,604 +79,543 @@ Check the health status of the server and database connection.
 
 ---
 
-### 2. Get Warehouses
+## 2) Get Warehouses
 
-Retrieve warehouse data by IDs.
+### Request
 
-**Endpoint:** `GET /api/warehouses`
+`GET /api/warehouses?ids=1,2,3`
 
-**Query Parameters:**
+### Query Parameters
 
-| Parameter | Type   | Required | Description                          |
-|-----------|--------|----------|--------------------------------------|
-| ids       | string | Yes      | Comma-separated warehouse IDs (e.g., "1,2,3") |
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `ids` | `string` | Yes | Comma-separated IDs. Parsed as positive integers only. |
 
-**Response Codes:**
-- `200 OK` - Warehouses found and returned
-- `400 Bad Request` - Invalid or missing warehouse IDs
-- `404 Not Found` - No warehouses found with provided IDs
-- `500 Internal Server Error` - Database or server error
+### ID Parsing Rules (Important)
 
-**Response Body (Success):**
+- IDs are parsed from comma-separated string.
+- Invalid entries are silently dropped.
+  - Example: `ids=1,abc,-4,5` becomes `[1,5]`.
+- If the parsed result is empty, API returns `400`.
+
+### Success Response
+
+`200 OK`
+
+Returns an array of found warehouses in the same order as requested IDs (for found IDs).
+
 ```json
 [
   {
     "id": 1,
-    "address": "123 Industrial Area, City Name, State 12345",
-    "googleLocation": "https://maps.google.com/?q=28.7041,77.1025",
-    "totalSpaceSqft": [10000, 15000, 20000],
-    "warehouseType": "RCC Structure",
-    "clearHeightFt": "30 ft",
+    "warehouseType": "RCC",
+    "address": "Some address",
+    "googleLocation": "https://maps.google.com/...",
+    "city": "Pune",
+    "state": "Maharashtra",
+    "postalCode": "411001",
+    "zone": "West",
+    "contactPerson": "Name",
+    "contactNumber": "9999999999",
+    "totalSpaceSqft": [12000, 18000],
+    "offeredSpaceSqft": "12000",
+    "numberOfDocks": "6",
+    "clearHeightFt": "30",
+    "compliances": "FM2, Fire NOC",
+    "otherSpecifications": "...",
     "ratePerSqft": "28",
-    "photos": "https://example.com/photo1.jpg,https://example.com/photo2.jpg",
-    "otherSpecifications": "Loading dock, 24/7 Security, CCTV",
-    "WarehouseData": {
-      "landType": "Industrial",
-      "fireSafetyMeasures": "Sprinklers, Fire Extinguishers, Fire Alarm",
-      "powerKva": "500 KVA"
-    }
+    "availability": "Immediate",
+    "uploadedBy": "ops@...",
+    "isBroker": "false",
+    "photos": "https://...jpg,https://...jpg",
+    "createdAt": "2026-01-01T10:00:00.000Z",
+    "statusUpdatedAt": "2026-01-02T10:00:00.000Z",
+    "visibility": false,
+    "warehouseOwnerType": null
   }
 ]
 ```
 
-**Example Request:**
+Important current behavior:
+
+- Relation `WarehouseData` is not included in this endpoint response today.
+- If some requested IDs do not exist but at least one does, response is still `200` with only found warehouses.
+- `404` happens only when none of the parsed IDs are found.
+
+Note:
+
+- `warehouseService.findWarehousesByIds()` currently does not eager-load Prisma relations (`include` is not used), so related `WarehouseData` is unavailable in fetched payloads unless service code is changed.
+
+### Error Responses
+
+`400 Bad Request`
+
+```json
+{ "error": "Invalid or no Warehouse IDs provided." }
 ```
-GET /api/warehouses?ids=1,2,3
+
+`404 Not Found`
+
+```json
+{ "error": "Warehouses with IDs 1, 2, 3 not found." }
+```
+
+`500 Internal Server Error`
+
+```json
+{ "error": "An internal server error occurred." }
 ```
 
 ---
 
-### 3. Generate Standard Presentation
+## 3) Generate Standard PPT
 
-Generate a standard PowerPoint presentation with basic warehouse information and selected images.
+### Request
 
-**Endpoint:** `POST /api/generate-ppt`
+`POST /api/generate-ppt`
 
-**Request Headers:**
-```
+Headers:
+
+```http
 Content-Type: application/json
 ```
 
-**Request Body:**
+### Request Body Contract
 
-| Field          | Type   | Required | Description                                    |
-|----------------|--------|----------|------------------------------------------------|
-| ids            | string | Yes      | Comma-separated warehouse IDs                  |
-| selectedImages | object | No       | Map of warehouse ID to array of image URLs     |
-| customDetails  | object | No       | Custom details for title and contact slides    |
+```ts
+interface GeneratePptRequest {
+  ids: string; // required, comma-separated positive integers
+  selectedImages?: Record<string, string[]>; // key = warehouse ID as string
+  includeLocation?: boolean; // default false
+  customDetails?: StandardCustomDetails;
+}
 
-**customDetails Object:**
+interface StandardCustomDetails {
+  // Title slide uses these:
+  clientName?: string;
+  companyName?: string; // fallback for title
+  clientRequirement?: string;
 
-| Field        | Type   | Required | Description                    |
-|--------------|--------|----------|--------------------------------|
-| companyName  | string | No       | Company name for title slide   |
-| employeeName | string | No       | Employee name for contact slide|
+  // Contact slide uses these:
+  pocName?: string;
+  pocContact?: string;
+}
+```
 
-**Request Body Example:**
+### Request Example
+
 ```json
 {
-  "ids": "1,2,3",
+  "ids": "1,2",
   "selectedImages": {
-    "1": [
-      "https://example.com/warehouse1-photo1.jpg",
-      "https://example.com/warehouse1-photo2.jpg"
-    ],
-    "2": [
-      "https://example.com/warehouse2-photo1.jpg"
-    ],
-    "3": []
+    "1": ["https://example.com/1a.jpg", "https://example.com/1b.jpg"],
+    "2": ["https://example.com/2a.jpg"]
   },
+  "includeLocation": true,
   "customDetails": {
-    "companyName": "ABC Logistics",
-    "employeeName": "John Doe"
+    "clientName": "Acme Logistics",
+    "clientRequirement": "Bhiwandi - 50,000 sqft",
+    "pocName": "Ravi",
+    "pocContact": "+91-9xxxxxxxxx"
   }
 }
 ```
 
-**Response Codes:**
-- `200 OK` - Presentation generated successfully
-- `400 Bad Request` - Invalid or missing warehouse IDs
-- `404 Not Found` - Warehouses not found
-- `500 Internal Server Error` - PPT generation failed
+### Success Response
 
-**Response Headers (Success):**
-```
+`200 OK`
+
+Headers currently set by backend:
+
+```http
 Content-Type: application/vnd.openxmlformats-officedocument.presentationml.presentation
-Content-Disposition: attachment; filename="Warehouses_1_2_3.pptx"
 ```
 
-**Response Body (Success):**
-Binary PowerPoint file (.pptx)
+Body:
 
-**Presentation Contents:**
-1. Title slide with company name
-2. Index slide listing all warehouses
-3. Individual slides for each warehouse with selected images
-4. Contact slide with employee information
+- Binary `.pptx` content.
 
-**Performance:**
-- Typical response time: 1-5 seconds
-- Depends on number of warehouses and images
+Important current behavior:
+
+- Backend does not set `Content-Disposition` filename today.
+- Frontend should set download filename itself.
+- Standard slide images come only from `selectedImages[warehouseId]`; DB `photos` are not auto-used by this endpoint.
+
+### Error Responses
+
+`400 Bad Request`
+
+```json
+{ "error": "Invalid or no Warehouse IDs provided." }
+```
+
+`404 Not Found`
+
+```json
+{ "error": "Warehouses with IDs 1, 2 not found." }
+```
+
+`500 Internal Server Error`
+
+```json
+{ "error": "An internal server error occurred during PPT generation." }
+```
+
+### What `includeLocation` Changes in Slides
+
+- If `includeLocation = true`:
+  - Property table includes a Google Maps hyperlink row when `googleLocation` exists.
+  - Commercials table removes the `Security Deposit` row.
+- If `includeLocation = false`:
+  - No Google Maps row.
+  - `Security Deposit: Available on Request` row is shown.
 
 ---
 
-### 4. Generate Detailed Presentation (NEW)
+## 4) Generate Detailed PPT
 
-Generate a comprehensive PowerPoint presentation with geospatial data, distance highlights, technical specifications, commercials, satellite imagery, and photo galleries.
+### Request
 
-**Endpoint:** `POST /api/generate-detailed-ppt`
+`POST /api/generate-detailed-ppt`
 
-**Request Headers:**
-```
+Headers:
+
+```http
 Content-Type: application/json
 ```
 
-**Timeout Configuration:**
-- Server timeout: 5 minutes (300 seconds)
-- Recommended client timeout: 5 minutes
+### Request Body Contract
 
-**Request Body:**
+```ts
+interface GenerateDetailedPptRequest {
+  ids: string; // required, comma-separated positive integers
+  selectedImages?: Record<string, string[]>; // only these are used for photo slides
+  customDetails?: DetailedCustomDetails;
+}
 
-| Field          | Type   | Required | Description                                    |
-|----------------|--------|----------|------------------------------------------------|
-| ids            | string | Yes      | Comma-separated warehouse IDs                  |
-| selectedImages | object | No       | Map of warehouse ID to array of image URLs     |
-| customDetails  | object | No       | Custom details for title and contact slides    |
+interface DetailedCustomDetails {
+  // Title slide supports both keys:
+  clientName?: string;
+  companyName?: string;
+  clientRequirement?: string;
 
-**customDetails Object:**
+  // Contact slide currently uses these keys:
+  pocName?: string;
+  pocContact?: string;
 
-| Field        | Type   | Required | Description                    |
-|--------------|--------|----------|--------------------------------|
-| companyName  | string | No       | Company name for title slide   |
-| employeeName | string | No       | Employee name for contact slide|
+  // These may be sent by clients but are currently not used by slide renderers:
+  employeeName?: string;
+}
+```
 
-**Request Body Example:**
+### Request Example
+
 ```json
 {
-  "ids": "1,2,3",
+  "ids": "3,4",
   "selectedImages": {
-    "1": [
-      "https://example.com/warehouse1-photo1.jpg",
-      "https://example.com/warehouse1-photo2.jpg"
-    ],
-    "2": [
-      "https://example.com/warehouse2-photo1.jpg"
-    ],
-    "3": []
+    "3": ["https://example.com/3a.jpg", "https://example.com/3b.jpg"],
+    "4": ["https://example.com/4a.jpg"]
   },
   "customDetails": {
-    "companyName": "Premium Logistics Solutions",
-    "employeeName": "Sarah Johnson"
+    "companyName": "Global Warehousing",
+    "clientRequirement": "NCR / 80,000 sqft",
+    "pocName": "Anita",
+    "pocContact": "+91-9xxxxxxxxx"
   }
 }
 ```
 
-**Response Codes:**
-- `200 OK` - Detailed presentation generated successfully
-- `400 Bad Request` - Invalid or missing warehouse IDs
-- `404 Not Found` - Warehouses not found
-- `500 Internal Server Error` - PPT generation failed
+### Success Response
 
-**Response Headers (Success):**
-```
+`200 OK`
+
+Headers currently set by backend:
+
+```http
 Content-Type: application/vnd.openxmlformats-officedocument.presentationml.presentation
-Content-Disposition: attachment; filename="Detailed_Warehouses_1_2_3.pptx"
 ```
 
-**Response Body (Success):**
-Binary PowerPoint file (.pptx)
+Body:
 
-**Presentation Contents:**
+- Binary `.pptx` content.
 
-1. **Title Slide**
-   - Company name (from customDetails)
-   - Warehouse count
-   - Generation date
+Important current behavior:
 
-2. **Index Slide**
-   - List of all warehouses with addresses
-   - Option numbers
+- Backend does not set `Content-Disposition` filename today.
+- Frontend should set filename locally.
+- Photo slides are generated only from `selectedImages[warehouseId]`.
+  - If omitted/empty for an ID, no photo slides are generated for that warehouse even if DB has photos.
+- Since `WarehouseData` relation is not eagerly loaded in current fetch, technical rows depending on `WarehouseData` fields (for example `landType`, `fireSafetyMeasures`, `powerKva`) often render as `N/A` unless backend query is updated.
 
-3. **For Each Warehouse:**
+### Error Responses
 
-   a. **Detailed Information Slide**
-   - **Distance Highlights Section:**
-     - Nearest Airport (name and distance in km)
-     - Nearest Highway (name and distance in km)
-     - Nearest Railway Station (name and distance in km)
-     - Approach Road Width (TBD)
-   
-   - **Address Section:**
-     - Full warehouse address
-   
-   - **Technical Details Section:**
-     - Carpet Area (sqft)
-     - Land Type
-     - Construction Type
-     - Side Height
-     - Centre Height (TBD)
-     - Dimensions (TBD)
-     - Flooring Type (TBD)
-     - Load Bearing Capacity (TBD)
-     - Dock Height from Floor (TBD)
-     - Dock Shutter Dimensions (TBD)
-     - Emergency Exit Doors (TBD)
-     - Fire Fighting Systems
-     - Power (KVA)
-     - Other Amenities
-   
-   - **Commercials Section:**
-     - Rent per sqft (₹)
-     - Deposit (TBD)
-     - Lock-in (TBD)
-     - Escalation (5% YoY)
-     - Notice Period (TBD)
-   
-   - **Satellite Image:**
-     - High-resolution satellite imagery from Esri World Imagery
-     - Displayed on right side of slide
-     - Zoom level: 15
-     - Placeholder shown if image unavailable
+`400 Bad Request`
 
-   b. **Photo Slides** (if photos available)
-   - Dynamic layouts based on photo count:
-     - 1 photo: Large centered image
-     - 2 photos: Side-by-side layout
-     - 3 photos: One large top, two smaller bottom
-     - 4 photos: 2x2 grid
-     - 5+ photos: Multiple slides (4 photos per slide)
-   - Page numbers for multi-page photo sections
-   - Gray placeholders for failed image downloads
+```json
+{ "error": "Invalid or no Warehouse IDs provided." }
+```
 
-4. **Contact Slide**
-   - Employee name (from customDetails)
-   - Contact information
+`404 Not Found`
 
-**Geospatial Data Processing:**
+```json
+{ "error": "Warehouses with IDs 3, 4 not found." }
+```
 
-The endpoint automatically enriches warehouse data with geospatial information:
+`500 Internal Server Error`
 
-1. **Coordinate Extraction:**
-   - Parses Google Maps URLs (various formats)
-   - Supports direct coordinate strings
-   - Handles shortened URLs (goo.gl)
-
-2. **Distance Calculations:**
-   - Uses Haversine formula for accurate distances
-   - Rounded to 1 decimal place
-   - Distances in kilometers
-
-3. **OpenStreetMap API Integration:**
-   - Finds nearest airports (within 100km radius)
-   - Finds nearest highways (within 50km radius, NH roads only)
-   - Finds nearest railway stations (within 50km radius)
-   - Rate limited to 1 request/second
-   - Results cached for 5 minutes
-
-4. **Satellite Imagery:**
-   - Fetches from Esri World Imagery tile service
-   - Automatically calculates tile coordinates
-   - Embeds image directly in presentation
-
-**Data Handling:**
-
-- **Missing Coordinates:** Displays "N/A" for geospatial data
-- **API Failures:** Shows "N/A" instead of crashing
-- **Missing Fields:** Displays "TBD" for unavailable data
-- **Invalid Photos:** Shows gray placeholder rectangles
-- **Empty Photo URLs:** No photo slides generated
-
-**Performance:**
-
-- **Single Warehouse:** ~10-15 seconds
-  - Coordinate extraction: < 1 second
-  - Geospatial API calls: ~3-5 seconds (with rate limiting)
-  - Satellite image fetch: ~2-3 seconds
-  - Photo downloads: ~2-5 seconds per photo
-  - PPT generation: ~1-2 seconds
-
-- **Multiple Warehouses:** ~10-15 seconds per warehouse
-  - 3 warehouses: ~30-45 seconds
-  - 5 warehouses: ~50-75 seconds
-  - 10 warehouses: ~100-150 seconds
-
-- **Caching Benefits:**
-  - Repeated queries for same location: < 1 second
-  - Cache TTL: 5 minutes
-
-**Error Handling:**
-
-The endpoint implements comprehensive error handling:
-
-1. **Validation Errors (400):**
-   - Empty or missing `ids` field
-   - Invalid ID format (non-numeric)
-   - Negative warehouse IDs
-
-2. **Not Found Errors (404):**
-   - Warehouse IDs don't exist in database
-
-3. **Server Errors (500):**
-   - Database connection failures
-   - OpenStreetMap API errors (logged, continues with N/A)
-   - Image download failures (logged, shows placeholder)
-   - PPT generation errors
-
-**Logging:**
-
-All operations are logged with structured JSON logs:
-- INFO: Processing start/completion
-- WARN: Missing data, API failures
-- ERROR: Critical failures with stack traces
+```json
+{ "error": "An internal server error occurred during detailed PPT generation." }
+```
 
 ---
 
-## Data Models
+## Internal Enrichment Model (Detailed Flow)
 
-### Warehouse Object
+This is not returned by API directly, but useful for frontend and AI tooling context.
 
-```typescript
-{
+```ts
+interface EnrichedWarehouse {
+  // original warehouse fields from DB
   id: number;
   address: string;
-  googleLocation: string | null;
-  totalSpaceSqft: number[] | number;
-  warehouseType: string;
-  clearHeightFt: string;
-  ratePerSqft: string;
-  photos: string | null;
-  otherSpecifications: string | null;
-  WarehouseData: {
-    landType: string | null;
-    fireSafetyMeasures: string | null;
-    powerKva: string | null;
+  city?: string;
+  state?: string;
+  googleLocation?: string | null;
+  totalSpaceSqft?: number[] | number | null;
+  warehouseType?: string | null;
+  clearHeightFt?: string | null;
+  ratePerSqft?: string | null;
+  otherSpecifications?: string | null;
+  photos?: string | string[] | null;
+  WarehouseData?: {
+    landType?: string | null;
+    fireSafetyMeasures?: string | null;
+    powerKva?: string | null;
   } | null;
-}
-```
 
-### Enriched Warehouse Object (Detailed PPT)
-
-```typescript
-{
-  ...Warehouse,
   geospatial: {
     latitude: number | null;
     longitude: number | null;
-    nearestAirport: {
-      name: string;
-      distance: number; // km, rounded to 1 decimal
-    } | null;
-    nearestHighway: {
-      name: string;
-      distance: number; // km, rounded to 1 decimal
-    } | null;
-    nearestRailway: {
-      name: string;
-      distance: number; // km, rounded to 1 decimal
-    } | null;
-    satelliteImageUrl: string | null;
+    nearestAirport: { name: string; distance: number } | null;
+    nearestHighway: { name: string; distance: number } | null;
+    nearestRailway: { name: string; distance: number } | null;
+    satelliteImage: { imageBuffer: Buffer; contentType: string } | null;
   };
-  validPhotos: string[]; // Array of valid photo URLs
+
+  validPhotos: string[];
 }
+```
+
+Geospatial providers and mechanics:
+
+- Coordinate extraction from multiple Google Maps URL patterns and raw coordinate strings.
+- Nearest airport: Nominatim.
+- Nearest highway and railway: Overpass.
+- Satellite image: Mapbox Static Images API.
+- API throttling: 1 request/second.
+- Retry: exponential backoff.
+- Cache TTL: 5 minutes in memory.
+
+---
+
+## Request/Response Classes For Frontend (Copy-Paste Ready)
+
+```ts
+export type WarehouseIdCsv = string;
+
+export interface ApiErrorResponse {
+  error: string;
+}
+
+export interface HealthOkResponse {
+  status: 'ok';
+  message: string;
+}
+
+export interface HealthFailResponse {
+  status: 'error';
+  message: string;
+}
+
+export interface Warehouse {
+  id: number;
+  warehouseType: string;
+  address: string;
+  googleLocation: string | null;
+  city: string;
+  state: string;
+  postalCode: string | null;
+  zone: string;
+  contactPerson: string;
+  contactNumber: string;
+  totalSpaceSqft: number[];
+  offeredSpaceSqft: string | null;
+  numberOfDocks: string | null;
+  clearHeightFt: string | null;
+  compliances: string;
+  otherSpecifications: string | null;
+  ratePerSqft: string;
+  availability: string | null;
+  uploadedBy: string;
+  isBroker: string | null;
+  photos: string | null;
+  createdAt: string | null;
+  statusUpdatedAt: string | null;
+  visibility: boolean | null;
+  warehouseOwnerType: string | null;
+}
+
+export interface StandardCustomDetails {
+  clientName?: string;
+  companyName?: string;
+  clientRequirement?: string;
+  pocName?: string;
+  pocContact?: string;
+}
+
+export interface DetailedCustomDetails extends StandardCustomDetails {
+  employeeName?: string;
+}
+
+export interface GeneratePptRequest {
+  ids: WarehouseIdCsv;
+  selectedImages?: Record<string, string[]>;
+  includeLocation?: boolean;
+  customDetails?: StandardCustomDetails;
+}
+
+export interface GenerateDetailedPptRequest {
+  ids: WarehouseIdCsv;
+  selectedImages?: Record<string, string[]>;
+  customDetails?: DetailedCustomDetails;
+}
+
+// PPT responses are binary blobs (application/vnd.openxmlformats-officedocument.presentationml.presentation)
+export type GeneratePptResponse = Blob;
+export type GenerateDetailedPptResponse = Blob;
 ```
 
 ---
 
-## Error Responses
+## Frontend Download Handling (Critical)
 
-### 400 Bad Request
+Use this pattern for both PPT endpoints.
 
-```json
-{
-  "error": "Invalid or no Warehouse IDs provided."
+```ts
+function extractFilename(contentDisposition: string | null, fallback: string): string {
+  if (!contentDisposition) return fallback;
+  const utf8 = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8?.[1]) return decodeURIComponent(utf8[1]);
+  const basic = contentDisposition.match(/filename="?([^";]+)"?/i);
+  if (basic?.[1]) return basic[1];
+  return fallback;
 }
-```
 
-**Causes:**
-- Missing `ids` field
-- Empty `ids` string
-- Invalid ID format (non-numeric)
-- Negative IDs
+export async function downloadPpt(
+  endpoint: string,
+  body: unknown,
+  fallbackFilename: string,
+  timeoutMs = 600_000
+): Promise<void> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-### 404 Not Found
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal
+    });
 
-```json
-{
-  "error": "Warehouses with IDs 1, 2, 3 not found."
-}
-```
+    if (!res.ok) {
+      let msg = `HTTP ${res.status}`;
+      try {
+        const j = await res.json();
+        if (j?.error) msg = j.error;
+      } catch {
+        const t = await res.text();
+        if (t) msg = t.slice(0, 240);
+      }
+      throw new Error(msg);
+    }
 
-**Causes:**
-- Warehouse IDs don't exist in database
-- All provided IDs are invalid
+    const blob = await res.blob();
+    const filename = extractFilename(
+      res.headers.get('Content-Disposition'),
+      fallbackFilename
+    );
 
-### 500 Internal Server Error
-
-```json
-{
-  "error": "An internal server error occurred during detailed PPT generation."
-}
-```
-
-**Causes:**
-- Database connection failure
-- Unexpected server error
-- PPT generation failure
-
----
-
-## Rate Limiting
-
-### OpenStreetMap API
-- **Rate:** 1 request per second
-- **Implementation:** Built-in throttling in geospatialService
-- **Caching:** 5-minute TTL to reduce API calls
-
-### Server Limits
-- **Max Request Size:** Default Express limit (~100kb)
-- **Timeout:** 5 minutes for detailed PPT endpoint
-- **Concurrent Requests:** No explicit limit (Node.js default)
-
----
-
-## Best Practices
-
-### 1. Client Timeout Configuration
-
-For detailed PPT endpoint, configure client timeout to at least 5 minutes:
-
-**Postman:**
-```
-Settings → General → Request timeout in ms: 300000
-```
-
-**cURL:**
-```bash
-curl --max-time 300 ...
-```
-
-**JavaScript (fetch):**
-```javascript
-const controller = new AbortController();
-const timeoutId = setTimeout(() => controller.abort(), 300000);
-
-fetch(url, {
-  signal: controller.signal,
-  // ... other options
-});
-```
-
-### 2. Batch Size Recommendations
-
-- **Standard PPT:** Up to 20 warehouses
-- **Detailed PPT:** Up to 10 warehouses (to stay within 5-minute timeout)
-
-### 3. Error Handling
-
-Always handle potential errors:
-
-```javascript
-try {
-  const response = await fetch('/api/generate-detailed-ppt', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids: '1,2,3' })
-  });
-  
-  if (!response.ok) {
-    const error = await response.json();
-    console.error('API Error:', error);
-    return;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } finally {
+    clearTimeout(timer);
   }
-  
-  const blob = await response.blob();
-  // Handle successful response
-} catch (error) {
-  console.error('Network Error:', error);
 }
 ```
 
-### 4. Caching Strategy
+Current backend note:
 
-The detailed PPT endpoint caches geospatial data for 5 minutes. For repeated requests:
-- First request: ~10-15 seconds per warehouse
-- Cached requests: ~2-3 seconds per warehouse
-
-### 5. Photo URL Requirements
-
-Photo URLs must:
-- Start with `http://` or `https://`
-- Be valid URLs
-- Be publicly accessible
-- Return image content (JPEG/PNG)
-
-Invalid URLs are automatically filtered out.
+- Since `Content-Disposition` is currently not set, frontend fallback filename is required.
 
 ---
 
-## Environment Variables
+## Frontend Integration Checklist For Another AI
 
-```bash
-# Server Configuration
-PORT=3001                    # Server port (default: 3001)
-FRONTEND_URL=http://localhost:3000  # CORS allowed origin
-
-# Database Configuration
-DATABASE_URL=postgresql://user:password@localhost:5432/warehouse_db
-
-# Logging
-LOG_LEVEL=INFO              # Logging level (ERROR, WARN, INFO)
-```
-
----
-
-## CORS Configuration
-
-The API allows requests from:
-- `null` (local file access for development)
-- Value of `FRONTEND_URL` environment variable
-
-To add additional origins, modify `server.js`:
-
-```javascript
-const allowedOrigins = [
-  'null',
-  process.env.FRONTEND_URL,
-  'https://your-domain.com'
-];
-```
+1. Always send `ids` as comma-separated string, not array.
+2. Build `selectedImages` as `Record<string, string[]>` keyed by warehouse ID.
+3. Standard mode with map links must set `includeLocation: true`.
+4. Detailed mode may take long; use client timeout around `600000` ms.
+5. Always parse non-2xx responses as JSON error first, then text fallback.
+6. Treat PPT endpoints as binary responses (`blob`).
+7. Do not rely on server-provided filename today.
+8. Handle partial warehouse results from `GET /api/warehouses`.
+9. Expect placeholders/N/A in generated PPT when geospatial/image fetch fails.
+10. Ensure your frontend origin matches one of `FRONTEND_URLS`/`FRONTEND_URL`/`LOCAL_FRONTEND_URL` (or local file context `null`).
 
 ---
 
-## Monitoring and Logging
+## Performance and Reliability Notes
 
-All API operations are logged with structured JSON format:
+- Standard PPT is usually fast but depends on image URL fetch speed.
+- Detailed PPT latency scales with warehouse count and external API/network performance.
+- Geospatial services use retries + throttling + in-memory cache (5 min).
+- External failures are tolerated with graceful fallback (N/A/placeholder), not hard fail in most cases.
+
+---
+
+## Logging Shape
+
+Backend logs are structured JSON with fields like:
 
 ```json
 {
-  "timestamp": "2025-11-18T00:00:00.000Z",
+  "timestamp": "2026-04-05T12:00:00.000Z",
   "level": "INFO",
   "component": "warehouseController",
   "function": "generateDetailedPresentation",
   "message": "Generating detailed presentation",
-  "warehouseIds": [1, 2, 3],
-  "warehouseCount": 3
+  "warehouseIds": [1, 2],
+  "warehouseCount": 2
 }
 ```
 
-**Log Levels:**
-- **ERROR:** Critical failures, exceptions
-- **WARN:** Missing data, API failures (non-critical)
-- **INFO:** Normal operations, processing status
+Use these for debugging integration issues.
 
 ---
 
-## Version History
+## Changelog (Docs)
 
-### v1.1.0 (Current)
-- Added `/api/generate-detailed-ppt` endpoint
-- Integrated OpenStreetMap geospatial data
-- Added satellite imagery support
-- Implemented dynamic photo layouts
-- Added comprehensive error handling
-- Extended timeout to 5 minutes
-
-### v1.0.0
-- Initial release
-- `/health` endpoint
-- `/api/warehouses` endpoint
-- `/api/generate-ppt` endpoint
-
----
-
-## Support
-
-For issues or questions:
-1. Check server logs for detailed error messages
-2. Verify database connectivity with `/health` endpoint
-3. Test with single warehouse before batch processing
-4. Ensure warehouse IDs exist in database
-
-## License
-
-Internal use only.
+- Corrected timeout values to current 10-minute behavior.
+- Added `includeLocation` support details for standard PPT.
+- Corrected binary response header expectations (no `Content-Disposition` currently).
+- Added frontend-focused request/response classes and download handling.
+- Added ID parsing/partial result behavior and integration caveats.
+- Updated geospatial provider details to current Mapbox + OSM/Nominatim implementation.

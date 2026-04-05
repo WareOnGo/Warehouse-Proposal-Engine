@@ -29,7 +29,9 @@
    - Memory: 2 GB
 8. Add environment variables:
    - `DATABASE_URL`: Your PostgreSQL connection string
-   - `FRONTEND_URL`: Your frontend URL (if needed)
+   - `FRONTEND_URLS`: Comma-separated frontend URLs for CORS (preferred)
+   - `FRONTEND_URL`: Single frontend URL (optional/backward compatibility)
+   - `LOCAL_FRONTEND_URL`: Local dev frontend URL (optional, for example `http://localhost:5173`)
    - `PORT`: `3001`
 9. Click "Create & deploy"
 
