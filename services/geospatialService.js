@@ -4,11 +4,11 @@ const { logError, logWarn, logInfo } = require('../utils/logger');
 /**
  * Retry helper function with exponential backoff
  * @param {Function} fn - Async function to retry
- * @param {number} maxRetries - Maximum number of retries (default: 2)
- * @param {number} baseDelay - Base delay in ms (default: 1000)
+ * @param {number} maxRetries - Maximum number of retries (default: 1)
+ * @param {number} baseDelay - Base delay in ms (default: 500)
  * @returns {Promise} Result of the function or null on failure
  */
-async function retryWithBackoff(fn, maxRetries = 2, baseDelay = 1000) {
+async function retryWithBackoff(fn, maxRetries = 1, baseDelay = 500) {
   let lastError;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -83,7 +83,7 @@ const cache = new Cache();
 
 // Configure axios instance with relaxed timeouts
 const axiosInstance = axios.create({
-  timeout: 60000, // 60 seconds
+  timeout: 20000, // 20 seconds default per request
   headers: {
     'User-Agent': 'WarehousePPTGenerator/1.0'
   }
@@ -393,7 +393,7 @@ async function findNearestAirport(lat, lon) {
         headers: {
           'User-Agent': 'WarehousePPTGenerator/1.0'
         },
-        timeout: 15000
+        timeout: 7000
       }
     );
 
@@ -410,7 +410,7 @@ async function findNearestAirport(lat, lon) {
           headers: {
             'User-Agent': 'WarehousePPTGenerator/1.0'
           },
-          timeout: 15000
+          timeout: 7000
         }
       );
 
@@ -475,7 +475,7 @@ async function findNearestHighway(lat, lon) {
     // Search for National Highways (NH) and State Highways (SH) within 100km
     // Using ref tag to identify NH and SH roads
     const query = `
-      [out:json][timeout:60];
+      [out:json][timeout:25];
       (
         way["highway"~"motorway|trunk|primary"]["ref"~"NH"](around:100000,${lat},${lon});
         way["highway"~"motorway|trunk|primary"]["ref"~"SH"](around:100000,${lat},${lon});
@@ -490,7 +490,7 @@ async function findNearestHighway(lat, lon) {
       query,
       {
         headers: { 'Content-Type': 'text/plain' },
-        timeout: 90000 // 90 seconds
+        timeout: 15000 // 15 seconds
       }
     );
 
@@ -583,7 +583,7 @@ async function findNearestRailwayStation(lat, lon) {
 
     // Simplified query - search for railway stations within 100km
     const query = `
-      [out:json][timeout:60];
+      [out:json][timeout:25];
       node["railway"="station"](around:100000,${lat},${lon});
       out 10;
     `;
@@ -593,7 +593,7 @@ async function findNearestRailwayStation(lat, lon) {
       query,
       {
         headers: { 'Content-Type': 'text/plain' },
-        timeout: 90000 // 90 seconds
+        timeout: 15000 // 15 seconds
       }
     );
 
@@ -675,7 +675,7 @@ async function fetchSatelliteImageUrl(lat, lon, zoom = 14) {
     // Download the image
     const response = await axiosInstance.get(mapboxUrl, {
       responseType: 'arraybuffer',
-      timeout: 30000
+      timeout: 15000
     });
 
     const imageBuffer = Buffer.from(response.data);

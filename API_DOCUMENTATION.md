@@ -414,8 +414,15 @@ Geospatial providers and mechanics:
 - Nearest highway and railway: Overpass.
 - Satellite image: Mapbox Static Images API.
 - API throttling: 1 request/second.
-- Retry: exponential backoff.
+- Retry: exponential backoff (fast-fail profile, fewer retries).
 - Cache TTL: 5 minutes in memory.
+
+Current geospatial request limits:
+
+- Default outbound HTTP timeout in geospatial service: 20 seconds.
+- Overpass request timeout: 15 seconds (plus Overpass query timeout hint 25s).
+- Nominatim request timeout: 7 seconds.
+- Mapbox static image timeout: 15 seconds.
 
 ---
 
