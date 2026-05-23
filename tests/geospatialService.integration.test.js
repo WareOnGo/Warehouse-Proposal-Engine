@@ -1,4 +1,4 @@
-const geospatialService = require('./geospatialService');
+const geospatialService = require('../src/services/geospatialService');
 
 // These tests make real API calls to OpenStreetMap services
 // They may be slower and could fail if the API is unavailable

@@ -1,13 +1,13 @@
 const PptxGenJS = require('pptxgenjs');
 const geospatialService = require('./geospatialService');
-const { generateTitleSlide } = require('../ppt-slides/titleSlide');
-const { generateContactSlide } = require('../ppt-slides/contactSlide');
+const { generateTitleSlide } = require('../slides/titleSlide');
+const { generateContactSlide } = require('../slides/contactSlide');
 const { logError, logWarn, logInfo } = require('../utils/logger');
 
 // Import detailed slide generation functions (will be created in task 3)
 let generateDetailedSlide, generatePhotoSlides;
 try {
-  const detailedSlideModule = require('../ppt-slides/detailedSlide');
+  const detailedSlideModule = require('../slides/detailedSlide');
   generateDetailedSlide = detailedSlideModule.generateDetailedSlide;
   generatePhotoSlides = detailedSlideModule.generatePhotoSlides;
 } catch (error) {

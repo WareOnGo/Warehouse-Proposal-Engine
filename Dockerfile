@@ -19,7 +19,7 @@ RUN npx prisma generate
 COPY . .
 
 # Expose port
-EXPOSE 3001
+EXPOSE 3002
 
 # Start the application
 CMD ["npm", "start"]

@@ -1,10 +1,13 @@
-// ppt-slides/titleSlide.js
+const path = require('path');
+
+const LOGO_PATH = path.join(__dirname, '..', '..', 'assets', 'WOG_logo_Transparent.png');
+
 function generateTitleSlide(pptx, warehouse, customDetails) {
     const titleSlide = pptx.addSlide();
     titleSlide.background = { color: 'FFFFFF' };
 
     titleSlide.addImage({
-        path: 'WOG_logo_Transparent.png',
+        path: LOGO_PATH,
         x: 4.5, y: 0.9, w: 4.0, h: 4.0,
     });
 

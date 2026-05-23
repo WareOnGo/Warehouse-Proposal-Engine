@@ -1,5 +1,5 @@
 const PptxGenJS = require('pptxgenjs');
-const { generateDetailedSlide, generatePhotoSlides } = require('./detailedSlide');
+const { generateDetailedSlide, generatePhotoSlides } = require('../src/slides/detailedSlide');
 
 describe('DetailedSlide - Slide Rendering', () => {
   let pptx;

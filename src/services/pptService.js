@@ -1,10 +1,9 @@
 const PptxGenJS = require('pptxgenjs');
 
-// Note the relative path to your existing slide generation functions
-const { generateTitleSlide } = require('../ppt-slides/titleSlide');
-const { generateIndexSlide } = require('../ppt-slides/indexSlide');
-const { generateMainSlide } = require('../ppt-slides/mainSlide');
-const { generateContactSlide } = require('../ppt-slides/contactSlide');
+const { generateTitleSlide } = require('../slides/titleSlide');
+const { generateIndexSlide } = require('../slides/indexSlide');
+const { generateMainSlide } = require('../slides/mainSlide');
+const { generateContactSlide } = require('../slides/contactSlide');
 
 // Creates the complete presentation and returns it as a buffer
 const createPptBuffer = async (warehouses, selectedImages, customDetails, includeLocation = false) => {

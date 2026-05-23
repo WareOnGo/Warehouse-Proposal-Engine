@@ -1,4 +1,4 @@
-const detailedPptService = require('./detailedPptService');
+const detailedPptService = require('../src/services/detailedPptService');
 
 describe('DetailedPptService - Photo Parsing', () => {
   test('should parse comma-separated photo URLs', () => {

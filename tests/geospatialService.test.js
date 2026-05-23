@@ -1,4 +1,4 @@
-const geospatialService = require('./geospatialService');
+const geospatialService = require('../src/services/geospatialService');
 
 describe('GeospatialService - Coordinate Extraction', () => {
   test('should extract coordinates from standard Google Maps URL with ?q= parameter', async () => {

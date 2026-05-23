@@ -1,4 +1,4 @@
-const detailedPptService = require('./detailedPptService');
+const detailedPptService = require('../src/services/detailedPptService');
 
 describe('End-to-End Integration Tests', () => {
   test('should generate presentation for single warehouse with complete data', async () => {
