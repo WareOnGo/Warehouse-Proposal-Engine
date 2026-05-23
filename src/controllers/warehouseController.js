@@ -1,5 +1,6 @@
 const warehouseService = require('../services/warehouseService');
 const pptService = require('../services/pptService');
+const pptServiceV2 = require('../services/pptServiceV2');
 const detailedPptService = require('../services/detailedPptService');
 const { logError, logWarn, logInfo } = require('../utils/logger');
 
@@ -153,9 +154,34 @@ const generateDetailedPresentation = async (req, res) => {
     }
 };
 
+const generatePresentationV2 = async (req, res) => {
+    const { ids, selectedImages = {}, customDetails = {} } = req.body;
+    const warehouseIds = parseIds(ids);
+    if (warehouseIds.length === 0) {
+        logWarn('warehouseController', 'generatePresentationV2', 'Invalid or no warehouse IDs provided', { bodyIds: ids });
+        return res.status(400).json({ error: 'Invalid or no Warehouse IDs provided.' });
+    }
+    try {
+        const warehouses = await warehouseService.findWarehousesByIds(warehouseIds);
+        if (!warehouses || warehouses.length === 0) {
+            logWarn('warehouseController', 'generatePresentationV2', 'Warehouses not found', { warehouseIds });
+            return res.status(404).json({ error: `Warehouses with IDs ${warehouseIds.join(', ')} not found.` });
+        }
+        logInfo('warehouseController', 'generatePresentationV2', 'Generating v2 presentation', { warehouseIds, warehouseCount: warehouses.length });
+        const buffer = await pptServiceV2.createPptBufferV2(warehouses, selectedImages, customDetails);
+        logInfo('warehouseController', 'generatePresentationV2', 'Successfully generated v2 presentation', { warehouseIds, bufferSize: buffer.length });
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+        res.send(buffer);
+    } catch (error) {
+        logError('warehouseController', 'generatePresentationV2', 'Failed to generate v2 PPT', { warehouseIds, error: error.message, stack: error.stack });
+        res.status(500).json({ error: 'An internal server error occurred during v2 PPT generation.' });
+    }
+};
+
 module.exports = {
     checkHealth,
     getWarehouses,
     generatePresentation,
+    generatePresentationV2,
     generateDetailedPresentation
 };
