@@ -2,10 +2,10 @@ const axios = require('axios');
 const { COLORS, FONT } = require('./themeV2');
 const { addFooter, addTopRightLogo } = require('./chromeV2');
 
-const SIDEBAR_W = 2.625;
+const SIDEBAR_W = 2.85;
 const SLIDE_H = 5.625;
 const TABLE_X = 0.15;
-const TABLE_W = 2.32;
+const TABLE_W = 2.62;
 const LABEL_COL_W = 0.82;
 const VALUE_COL_W = TABLE_W - LABEL_COL_W;
 
@@ -48,7 +48,7 @@ const buildTable = (slide, rows, y, threeCol = false) => {
             { text: cellText(value), options: valueOpts },
         ];
     });
-    const colW = threeCol ? [LABEL_COL_W, 0.65, 0.85] : [LABEL_COL_W, VALUE_COL_W];
+    const colW = threeCol ? [LABEL_COL_W, 0.95, 0.85] : [LABEL_COL_W, VALUE_COL_W];
     const rowH = rowHeights(rows, colW);
     slide.addTable(cells, {
         x: TABLE_X, y, w: TABLE_W,
@@ -234,20 +234,39 @@ async function generateDetailedSlideV2(pptx, warehouse, selectedPhotoUrls, optio
         ? `${warehouse.totalSpaceSqft.join(', ')} sqft`
         : (warehouse.offeredSpaceSqft || 'N/A');
     const wd = warehouse.WarehouseData || {};
-    const fireSafetySplit = splitInTwo(wd.fireSafetyMeasures);
-    const compliancesSplit = splitInTwo(warehouse.compliances);
-    const heightSplit = splitInTwo(warehouse.clearHeightFt);
-    const flooringSplit = splitInTwo(wd.landType || warehouse.otherSpecifications);
-    const docksSplit = splitInTwo(warehouse.numberOfDocks);
+    const yn = (v) => (v ? 'Y' : 'N');
+    const landTypeStr = (wd.landType || '').trim();
+    const isUnverifiedCLU = !landTypeStr || /^others?$/i.test(landTypeStr);
+    const cluValue = isUnverifiedCLU ? 'Unverified CLU' : `${landTypeStr} CLU`;
+    const fireNocValue = `Fire NOC - ${yn(wd.fireNocAvailable)}`;
+
+    // Two-cell rows now pull from dedicated schema columns instead of
+    // splitting a single comma-separated string. Suffixes disambiguate the
+    // two cells (e.g. "4ft plinth height" vs "3 Nos.") so the row reads
+    // clearly even when only one value is present.
+    const pair = (a, b) => (a || b) ? [a || 'N/A', b || 'N/A'] : null;
+    const withSuffix = (v, suffix) => (v ? `${v} ${suffix}` : null);
+    const docksValue = pair(warehouse.numberOfDocks, withSuffix(warehouse.plinthHeightFt, 'plinth height'))
+        || splitInTwo(warehouse.numberOfDocks)
+        || warehouse.numberOfDocks
+        || 'N/A';
+    const heightValue = pair(withSuffix(warehouse.clearHeightFt, 'eaves'), withSuffix(warehouse.centreHeight, 'centre'))
+        || splitInTwo(warehouse.clearHeightFt)
+        || warehouse.clearHeightFt
+        || 'N/A';
+    const flooringValue = pair(warehouse.flooringType, warehouse.floorStrengthPerSqm)
+        || splitInTwo(warehouse.otherSpecifications)
+        || warehouse.otherSpecifications
+        || 'N/A';
 
     const specRows = [
         ['Offered Area', area],
         ['Building', warehouse.warehouseType || 'N/A'],
-        ['Docks', docksSplit || warehouse.numberOfDocks || 'N/A'],
-        ['Height', heightSplit || warehouse.clearHeightFt || 'N/A'],
-        ['Flooring', flooringSplit || wd.landType || warehouse.otherSpecifications || 'N/A'],
-        ['Fire Safety', fireSafetySplit || wd.fireSafetyMeasures || 'N/A'],
-        ['Compliances', compliancesSplit || warehouse.compliances || 'N/A'],
+        ['Docks', docksValue],
+        ['Height', heightValue],
+        ['Flooring', flooringValue],
+        ['Fire Safety', wd.fireSafetyMeasures || 'N/A'],
+        ['Compliances', [cluValue, fireNocValue]],
         ['Handover', warehouse.availability || 'Immediate'],
     ];
     const specsHeight = buildTable(slide, specRows, specsTableY, true);

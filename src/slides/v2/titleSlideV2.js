@@ -21,7 +21,7 @@ async function generateTitleSlideV2(pptx, warehouses, customDetails) {
         line: { color: COLORS.divider, width: 0 },
     });
 
-    slide.addImage({ path: LOGO_PATH, x: 0.2, y: 0.2, w: 1.6, h: 1.6 });
+    slide.addImage({ path: LOGO_PATH, x: 0.16, y: 0.2, w: 1.6, h: 1.6 });
 
     const clientName = customDetails.clientName || customDetails.companyName || 'Client Name';
     slide.addText(
@@ -30,15 +30,15 @@ async function generateTitleSlideV2(pptx, warehouses, customDetails) {
             { text: 'for ', options: { bold: true } },
             { text: clientName, options: { bold: true } },
         ],
-        { x: 0.45, y: 2.441, w: 5.15, h: 1.45, fontFace: FONT, fontSize: 30, color: COLORS.navy, valign: 'top' }
+        { x: 0.36, y: 2.441, w: 5.15, h: 1.45, fontFace: FONT, fontSize: 30, color: COLORS.navy, valign: 'top' }
     );
 
     slide.addShape(pptx.shapes.RECTANGLE, {
-        x: 0.55, y: 4.22, w: 0.5, h: 0.055,
+        x: 0.44, y: 4.22, w: 0.5, h: 0.055,
         fill: { color: COLORS.navy }, line: { color: COLORS.navy, width: 0 },
     });
     slide.addShape(pptx.shapes.RECTANGLE, {
-        x: 1.12, y: 4.22, w: 3.3, h: 0.055,
+        x: 0.896, y: 4.22, w: 3.3, h: 0.055,
         fill: { color: COLORS.divider }, line: { color: COLORS.divider, width: 0 },
     });
 
@@ -48,7 +48,7 @@ async function generateTitleSlideV2(pptx, warehouses, customDetails) {
         `${city}   ·   ${count} ${count === 1 ? 'Property' : 'Properties'}`,
         // Same x as the title frame above so the visual left edges line up —
         // both frames inherit the default ~0.1" text padding.
-        { x: 0.45, y: 4.42, w: 3.886, h: 0.44, fontFace: FONT, fontSize: 11, color: COLORS.navy }
+        { x: 0.36, y: 4.42, w: 3.886, h: 0.44, fontFace: FONT, fontSize: 11, color: COLORS.navy }
     );
 
     addFooter(slide, { variant: 'cover' });

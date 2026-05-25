@@ -6,6 +6,7 @@ const prisma = new PrismaClient();
 const findWarehousesByIds = async (warehouseIds) => {
     const warehouses = await prisma.warehouse.findMany({
         where: { id: { in: warehouseIds } },
+        include: { WarehouseData: true },
     });
     
     // Sort warehouses to match the order of the input warehouseIds array
