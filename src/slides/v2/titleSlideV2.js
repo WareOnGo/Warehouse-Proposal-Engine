@@ -46,7 +46,9 @@ async function generateTitleSlideV2(pptx, warehouses, customDetails) {
     const count = warehouses.length;
     slide.addText(
         `${city}   ·   ${count} ${count === 1 ? 'Property' : 'Properties'}`,
-        { x: 0.57, y: 4.42, w: 3.766, h: 0.44, fontFace: FONT, fontSize: 11, color: COLORS.navy }
+        // Same x as the title frame above so the visual left edges line up —
+        // both frames inherit the default ~0.1" text padding.
+        { x: 0.45, y: 4.42, w: 3.886, h: 0.44, fontFace: FONT, fontSize: 11, color: COLORS.navy }
     );
 
     addFooter(slide, { variant: 'cover' });

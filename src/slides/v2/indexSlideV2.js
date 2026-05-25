@@ -7,7 +7,7 @@ function generateIndexSlideV2(pptx, warehouses) {
 
     slide.addText('INDEX', {
         x: 0.5, y: 0.395, w: 9.0, h: 0.6,
-        fontFace: FONT, fontSize: 21, bold: true, color: COLORS.navy,
+        fontFace: FONT, fontSize: 21, bold: true, color: COLORS.navy, align: 'center',
     });
 
     const headerCellOpts = {

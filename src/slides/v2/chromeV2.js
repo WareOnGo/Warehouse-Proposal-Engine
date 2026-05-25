@@ -9,8 +9,11 @@ function addFooter(slide, opts = {}) {
     slide.addText(
         `Prepared by WareOnGo  |  Dated ${formatDate()}  |  Confidential`,
         isCover
-            ? { x: 0.55, y: 5.345, w: 4.8, h: 0.28, fontFace: FONT, fontSize: 8.5, color: COLORS.navy, align: 'left' }
-            : { x: 5.0, y: 5.345, w: 4.8, h: 0.28, fontFace: FONT, fontSize: 8.5, color: COLORS.navy, align: 'right' }
+            ? { x: 0.45, y: 5.22, w: 4.9, h: 0.28, fontFace: FONT, fontSize: 7.5, color: COLORS.navy, align: 'left' }
+            // Right edge of the frame lands at x=9.65 so the visible text right
+            // edge sits at ~9.55 (after the ~0.1" text-frame padding), flush
+            // with the right edge of the photos region / index table.
+            : { x: 4.65, y: 5.22, w: 5.0, h: 0.28, fontFace: FONT, fontSize: 7.5, color: COLORS.navy, align: 'right' }
     );
 }
 

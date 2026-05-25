@@ -21,6 +21,11 @@ const sectionLabel = (slide, text, y) => {
 const FONT_EXTRABOLD = `${FONT} ExtraBold`;
 const FONT_SEMIBOLD = `${FONT} SemiBold`;
 
+// Rich-text fragment values (e.g. hyperlinks) come in as `{ runs: [...] }` and
+// are passed through to pptxgenjs verbatim — clamp/stringify only plain values.
+const isRichValue = (v) => v != null && typeof v === 'object' && Array.isArray(v.runs);
+const cellText = (v) => (isRichValue(v) ? v.runs : clamp(v ?? 'N/A'));
+
 const buildTable = (slide, rows, y, threeCol = false) => {
     const labelOpts = { bold: true, color: COLORS.bg, fill: { color: COLORS.navy }, fontFace: FONT_SEMIBOLD, fontSize: 7, valign: 'middle', margin: 0.05 };
     const valueOpts = { color: COLORS.navy, fill: { color: COLORS.sidebar }, fontFace: FONT, fontSize: 7, valign: 'middle', margin: 0.05 };
@@ -28,19 +33,19 @@ const buildTable = (slide, rows, y, threeCol = false) => {
         if (threeCol && Array.isArray(value)) {
             return [
                 { text: label, options: labelOpts },
-                { text: clamp(value[0] ?? 'N/A'), options: valueOpts },
-                { text: clamp(value[1] ?? 'N/A'), options: valueOpts },
+                { text: cellText(value[0]), options: valueOpts },
+                { text: cellText(value[1]), options: valueOpts },
             ];
         }
         if (threeCol) {
             return [
                 { text: label, options: labelOpts },
-                { text: clamp(value ?? 'N/A'), options: { ...valueOpts, colspan: 2 } },
+                { text: cellText(value), options: { ...valueOpts, colspan: 2 } },
             ];
         }
         return [
             { text: label, options: labelOpts },
-            { text: clamp(value ?? 'N/A'), options: valueOpts },
+            { text: cellText(value), options: valueOpts },
         ];
     });
     const colW = threeCol ? [LABEL_COL_W, 0.65, 0.85] : [LABEL_COL_W, VALUE_COL_W];
@@ -74,6 +79,12 @@ const clamp = (text) => {
     return s.length <= MAX_CELL_CHARS ? s : s.slice(0, MAX_CELL_CHARS - 1).trimEnd() + '…';
 };
 
+const plainText = (v) => {
+    if (v == null) return '';
+    if (isRichValue(v)) return v.runs.map((r) => r.text || '').join('');
+    return String(v);
+};
+
 const linesForCell = (text, colW) => {
     if (!text) return 1;
     const usable = Math.max(colW - 0.1, 0.1);
@@ -87,10 +98,10 @@ const linesForCell = (text, colW) => {
 const rowHeights = (rows, colWidths) => rows.map(([label, value]) => {
     let maxLines = linesForCell(label, colWidths[0]);
     if (Array.isArray(value)) {
-        maxLines = Math.max(maxLines, linesForCell(clamp(value[0]), colWidths[1]), linesForCell(clamp(value[1]), colWidths[2]));
+        maxLines = Math.max(maxLines, linesForCell(clamp(plainText(value[0])), colWidths[1]), linesForCell(clamp(plainText(value[1])), colWidths[2]));
     } else {
         const valColW = (colWidths[1] || 0) + (colWidths[2] || 0);
-        maxLines = Math.max(maxLines, linesForCell(clamp(value), valColW));
+        maxLines = Math.max(maxLines, linesForCell(clamp(plainText(value)), valColW));
     }
     return Math.max(maxLines * LINE_H + ROW_PAD, MIN_ROW_H);
 });
@@ -206,9 +217,12 @@ async function generateDetailedSlideV2(pptx, warehouse, selectedPhotoUrls, optio
     const locationLabelY = 0.5;
     sectionLabel(slide, 'Location Details', locationLabelY - LABEL_LIFT);
     const locationLabel = [warehouse.city, warehouse.state].filter(Boolean).join(', ') || warehouse.address || 'N/A';
+    const mapsValue = warehouse.googleLocation
+        ? { runs: [{ text: 'See link', options: { hyperlink: { url: warehouse.googleLocation }, color: '1A56DB', underline: { style: 'sng' } } }] }
+        : 'Available on demand';
     const propertyRows = [
         ['Address', locationLabel],
-        ['Google Maps', warehouse.googleLocation ? 'See link' : 'Awaited'],
+        ['Google Maps', mapsValue],
     ];
     const locationTableY = locationLabelY + LABEL_TO_TABLE;
     const locationHeight = buildTable(slide, propertyRows, locationTableY);
