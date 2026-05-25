@@ -217,8 +217,17 @@ async function generateDetailedSlideV2(pptx, warehouse, selectedPhotoUrls, optio
     const locationLabelY = 0.5;
     sectionLabel(slide, 'Location Details', locationLabelY - LABEL_LIFT);
     const locationLabel = [warehouse.city, warehouse.state].filter(Boolean).join(', ') || warehouse.address || 'N/A';
-    const mapsValue = warehouse.googleLocation
-        ? { runs: [{ text: 'See link', options: { hyperlink: { url: warehouse.googleLocation }, color: '1A56DB', underline: { style: 'sng' } } }] }
+    const lat = warehouse.WarehouseData?.latitude;
+    const lng = warehouse.WarehouseData?.longitude;
+    const hasCoords = typeof lat === 'number' && typeof lng === 'number';
+    // Link target: prefer the saved googleLocation URL (the specific place the
+    // team mapped). Only synthesize a coords-search URL if no saved URL exists.
+    const mapsUrl = warehouse.googleLocation
+        || (hasCoords ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}` : null);
+    // Display text: lat/long when we have coords, otherwise "See link".
+    const mapsText = hasCoords ? `${lat}, ${lng}` : 'See link';
+    const mapsValue = mapsUrl
+        ? { runs: [{ text: mapsText, options: { hyperlink: { url: mapsUrl }, color: '1A56DB', underline: { style: 'sng' } } }] }
         : 'Available on demand';
     const propertyRows = [
         ['Address', locationLabel],
