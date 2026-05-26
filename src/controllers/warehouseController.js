@@ -2,6 +2,7 @@ const warehouseService = require('../services/warehouseService');
 const pptService = require('../services/pptService');
 const pptServiceV2 = require('../services/pptServiceV2');
 const pptServiceGodamwale = require('../services/pptServiceGodamwale');
+const pptServiceTci = require('../services/pptServiceTci');
 const detailedPptService = require('../services/detailedPptService');
 const { logError, logWarn, logInfo } = require('../utils/logger');
 
@@ -203,11 +204,40 @@ const generatePresentationGodamwale = async (req, res) => {
     }
 };
 
+// TCI deck endpoint. Currently accepts the same body shape as v2/godamwale
+// but tolerates an empty / missing `ids` field — when no warehouses come
+// through, the service falls back to placeholder data so the layout can be
+// previewed before the real data API is wired in.
+const generatePresentationTci = async (req, res) => {
+    const { ids, selectedImages = {}, customDetails = {} } = req.body || {};
+    const warehouseIds = parseIds(ids);
+    try {
+        let warehouses = [];
+        if (warehouseIds.length > 0) {
+            warehouses = await warehouseService.findWarehousesByIds(warehouseIds);
+            if (!warehouses || warehouses.length === 0) {
+                logWarn('warehouseController', 'generatePresentationTci', 'Warehouses not found', { warehouseIds });
+                return res.status(404).json({ error: `Warehouses with IDs ${warehouseIds.join(', ')} not found.` });
+            }
+        } else {
+            logInfo('warehouseController', 'generatePresentationTci', 'No ids supplied, using placeholder data');
+        }
+        const buffer = await pptServiceTci.createPptBufferTci(warehouses, selectedImages, customDetails);
+        logInfo('warehouseController', 'generatePresentationTci', 'Generated TCI presentation', { warehouseIds, bufferSize: buffer.length });
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+        res.send(buffer);
+    } catch (error) {
+        logError('warehouseController', 'generatePresentationTci', 'Failed to generate TCI PPT', { warehouseIds, error: error.message, stack: error.stack });
+        res.status(500).json({ error: 'An internal server error occurred during TCI PPT generation.' });
+    }
+};
+
 module.exports = {
     checkHealth,
     getWarehouses,
     generatePresentation,
     generatePresentationV2,
     generatePresentationGodamwale,
+    generatePresentationTci,
     generateDetailedPresentation
 };

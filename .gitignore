@@ -136,3 +136,6 @@ dist
 .pnp.*
 
 /src/generated/prisma
+
+# Local preview artifacts from scripts/preview-v2.js and ad-hoc renders
+/preview-out/
