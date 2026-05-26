@@ -9,13 +9,72 @@ const clamp = (s) => {
     return str.length <= MAX_CELL_CHARS ? str : str.slice(0, MAX_CELL_CHARS - 1).trimEnd() + '…';
 };
 
+// Treat empty strings and the literal placeholders "NA" / "N/A" as null —
+// they show up across the data set as stand-ins for "no value" and shouldn't
+// override the row's default text.
+const NA_RE = /^\s*(na|n\/a)\s*$/i;
+const asValue = (v) => {
+    if (v == null) return null;
+    if (typeof v !== 'string') return v;
+    const trimmed = v.trim();
+    if (!trimmed || NA_RE.test(trimmed)) return null;
+    return trimmed;
+};
+
 const IMAGE_EXT_RE = /\.(jpe?g|png|gif|webp|bmp)(?:$|\?)/i;
 const isImageUrl = (url) => typeof url === 'string' && IMAGE_EXT_RE.test(url);
 
+// Decode pixel dimensions from the file's own header bytes. pptxgenjs's
+// `sizing.cover` path uses the addImage call's top-level w/h as the *source*
+// image dimensions when computing the crop rect — so if we pass the box w/h
+// at the top level (matching `sizing.w/h`), every crop percentage works out
+// to zero and the image stretches to fill instead of cropping. Reading the
+// real source dimensions lets us pass the true aspect ratio at the top level
+// while still pinning the placement via `sizing`.
+const readImageDimensions = (buf) => {
+    if (!buf || buf.length < 24) return null;
+    // PNG: 8-byte signature, then IHDR with width/height as big-endian uint32.
+    if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) {
+        return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+    }
+    // GIF: width/height at offset 6, little-endian uint16.
+    if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) {
+        return { w: buf.readUInt16LE(6), h: buf.readUInt16LE(8) };
+    }
+    // WebP (VP8/VP8L/VP8X) inside RIFF container.
+    if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46
+        && buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50) {
+        const fourCC = buf.slice(12, 16).toString('ascii');
+        if (fourCC === 'VP8 ') return { w: buf.readUInt16LE(26) & 0x3FFF, h: buf.readUInt16LE(28) & 0x3FFF };
+        if (fourCC === 'VP8L') {
+            const b0 = buf[21], b1 = buf[22], b2 = buf[23], b3 = buf[24];
+            return { w: 1 + (((b1 & 0x3F) << 8) | b0), h: 1 + (((b3 & 0x0F) << 10) | (b2 << 2) | ((b1 & 0xC0) >> 6)) };
+        }
+        if (fourCC === 'VP8X') return { w: 1 + (buf[24] | (buf[25] << 8) | (buf[26] << 16)), h: 1 + (buf[27] | (buf[28] << 8) | (buf[29] << 16)) };
+    }
+    // JPEG: walk markers until SOF (0xC0–0xCF, excluding DHT/DAC/DRI), read 16-bit height then width.
+    if (buf[0] === 0xFF && buf[1] === 0xD8) {
+        let i = 2;
+        while (i < buf.length - 9) {
+            if (buf[i] !== 0xFF) return null;
+            const marker = buf[i + 1];
+            if (marker === 0xD8 || marker === 0xD9) return null;
+            // SOFn frame markers carry the image dimensions; skip DHT/DAC/DRI which share the 0xC_ range.
+            if (marker >= 0xC0 && marker <= 0xCF && marker !== 0xC4 && marker !== 0xC8 && marker !== 0xCC) {
+                return { h: buf.readUInt16BE(i + 5), w: buf.readUInt16BE(i + 7) };
+            }
+            i += 2 + buf.readUInt16BE(i + 2);
+        }
+        return null;
+    }
+    return null;
+};
+
 const fetchImage = async (url) => {
     const response = await axios.get(url, { responseType: 'arraybuffer' });
+    const buffer = Buffer.from(response.data);
     const mime = url.toLowerCase().includes('.png') ? 'image/png' : 'image/jpeg';
-    return `data:${mime};base64,${Buffer.from(response.data).toString('base64')}`;
+    return { data: `data:${mime};base64,${buffer.toString('base64')}`, dims: readImageDimensions(buffer) };
 };
 
 const addImageOrPlaceholder = async (pptx, slide, url, box) => {
@@ -24,8 +83,23 @@ const addImageOrPlaceholder = async (pptx, slide, url, box) => {
         return;
     }
     try {
-        const data = await fetchImage(url);
-        slide.addImage({ data, ...box, sizing: { type: 'cover', w: box.w, h: box.h } });
+        const { data, dims } = await fetchImage(url);
+        if (dims && dims.w > 0 && dims.h > 0) {
+            // Scale source pixel dims to inches preserving aspect; the absolute
+            // size is irrelevant because pptxgenjs's `cover` only uses the
+            // ratio, and the placement gets clamped to `sizing.w/h` afterwards.
+            const sourceAspect = dims.w / dims.h;
+            const topW = 10, topH = 10 / sourceAspect;
+            slide.addImage({
+                data,
+                x: box.x, y: box.y, w: topW, h: topH,
+                sizing: { type: 'cover', w: box.w, h: box.h, x: 0, y: 0 },
+            });
+        } else {
+            // No dimensions available — fall back to the previous behavior so
+            // we at least render something rather than throwing.
+            slide.addImage({ data, ...box, sizing: { type: 'cover', w: box.w, h: box.h } });
+        }
     } catch (_) {
         slide.addShape('rect', { ...box, fill: { color: 'EFEFEF' }, line: { color: 'D0D0D0', width: 0.5 } });
     }
@@ -96,16 +170,48 @@ async function generateDetailedSlideTci(pptx, warehouse, selectedPhotoUrls, opti
         || `Property ${warehouse.id}`;
 
     const wd = warehouse.WarehouseData || {};
-    const yn = (v) => (v ? 'Yes' : 'No');
     const lat = wd.latitude, lng = wd.longitude;
     const hasCoords = typeof lat === 'number' && typeof lng === 'number';
     const mapsUrl = warehouse.googleLocation
         || (hasCoords ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}` : null);
     const coordsText = hasCoords ? `${lat}, ${lng}` : (warehouse.googleLocation ? 'See link' : 'Available on demand');
 
-    const area = Array.isArray(warehouse.totalSpaceSqft) && warehouse.totalSpaceSqft.length
-        ? `Offered area – ${warehouse.totalSpaceSqft.join(', ')} sq. ft.`
-        : (warehouse.offeredSpaceSqft || 'N/A');
+    // Offered area is the canonical value — fall back to totalSpaceSqft only
+    // when offeredSpaceSqft isn't set.
+    const offered = asValue(warehouse.offeredSpaceSqft);
+    const area = offered
+        ? `Offered area – ${offered} sq. ft.`
+        : (Array.isArray(warehouse.totalSpaceSqft) && warehouse.totalSpaceSqft.length
+            ? `Offered area – ${warehouse.totalSpaceSqft.join(', ')} sq. ft.`
+            : 'N/A');
+
+    // Fire safety: concatenate measures with NOC status. "NA"/"N/A"/blank
+    // measures are treated as null so we only show the NOC half when the
+    // measures string is a placeholder.
+    const fireMeasures = asValue(wd.fireSafetyMeasures);
+    const fireNocLabel = wd.fireNocAvailable == null
+        ? 'NOC status not available'
+        : `NOC ${wd.fireNocAvailable ? 'Available' : 'Not available'}`;
+    const fireSafetyValue = [fireMeasures, fireNocLabel].filter(Boolean).join(', ');
+
+    // Power: prefer the numeric KVA field; fall back to "Available" per PM
+    // direction since this column isn't reliably backfilled yet.
+    const powerKva = asValue(wd.powerKva);
+    const electricalValue = powerKva ? `${powerKva} KVA` : 'Available';
+
+    // CLU display follows the v2 convention: blank/Other land types resolve to
+    // "Unverified CLU"; anything else shows as "<landType> CLU".
+    const landTypeStr = asValue(wd.landType);
+    const isUnverifiedCLU = !landTypeStr || /^others?$/i.test(landTypeStr);
+    const cluValue = isUnverifiedCLU ? 'Unverified CLU' : `${landTypeStr} CLU`;
+
+    // The `availability` column is a yes/no flag in the DB — translate to a
+    // human-readable handover timeline. Anything else (e.g. a future date) is
+    // passed through unchanged.
+    const availabilityRaw = asValue(warehouse.availability);
+    const handoverValue = availabilityRaw && /^yes$/i.test(availabilityRaw)
+        ? 'Immediate'
+        : (availabilityRaw || 'Available');
 
     // Header rows reproduce the source's dark navy "Project name" band plus
     // the white "Building Structural Details" sub-header.
@@ -134,28 +240,31 @@ async function generateDetailedSlideTci(pptx, warehouse, selectedPhotoUrls, opti
         [
             { text: 'Building Structural Details', options: { ...subHeaderOpts, colspan: 2 } },
         ],
-        ['Type of Option', warehouse.warehouseType || 'Ready To Move – PEB Structure'],
+        ['Type of Option', asValue(warehouse.warehouseType) || 'N/A'],
         ['Google Coordinates', mapsUrl
             ? { text: coordsText, options: { ...valueOpts, hyperlink: { url: mapsUrl }, color: COLORS.hyperlink, underline: { style: 'sng' } } }
             : coordsText],
-        ['Status of Land', wd.landType ? `${wd.landType} CLU` : 'Approved For warehousing'],
+        ['Status of Land', cluValue],
         ['Area details', area],
-        ['Rental per sq. ft.', warehouse.ratePerSqft != null ? `${warehouse.ratePerSqft} INR + GST` : 'On request'],
-        ['Eaves Height', warehouse.clearHeightFt ? `${warehouse.clearHeightFt} Meter` : 'N/A'],
-        ['Type Of Flooring', warehouse.flooringType || 'N/A'],
-        ['Floor Load Capacity', warehouse.floorStrengthPerSqm || 'N/A'],
-        ['No. of docks', warehouse.numberOfDocks ? `${warehouse.numberOfDocks} Nos` : 'N/A'],
-        ['Canopy details', warehouse.canopyDetails || 'Running Canopy'],
-        ['Ventilation details', warehouse.ventilationDetails || 'Ridge vents'],
-        ['Insulation details', warehouse.insulationDetails || 'Available'],
-        ['Electrical workload', warehouse.electricalLoad || 'Load – Available'],
-        ['Toilets', warehouse.toilets || 'Available'],
-        ['Building Stability Certificate', warehouse.stabilityCertificate || 'Will be available'],
-        ['Fire safety details', wd.fireSafetyMeasures
-            || (wd.fireNocAvailable
-                ? 'Hydrant Available and Sprinklers will be installed at additional cost'
-                : 'Hydrant Available and Sprinklers will be installed at additional cost')],
-        ['Handover timeline', warehouse.availability || 'Immediate'],
+        ['Rental per sq. ft.', asValue(warehouse.ratePerSqft) ? `${asValue(warehouse.ratePerSqft)} + GST` : 'On request'],
+        ['Eaves Height', asValue(warehouse.clearHeightFt) ? `${asValue(warehouse.clearHeightFt)} ft` : 'N/A'],
+        ['Type Of Flooring', asValue(warehouse.flooringType) || 'N/A'],
+        ['Floor Load Capacity', asValue(warehouse.floorStrengthPerSqm) || 'N/A'],
+        ['No. of docks', asValue(warehouse.numberOfDocks) ? `${asValue(warehouse.numberOfDocks)} Nos` : 'N/A'],
+        // PM-requested fallbacks. The 'Running Canopy' / 'Turbo vent' defaults
+        // are temporary stand-ins until the backfill exercise populates these
+        // columns — drop them once data lands.
+        ['Canopy details', asValue(warehouse.canopyType) || 'Running Canopy'],
+        ['Ventilation details', asValue(warehouse.ventilationType) || 'Turbo vent'],
+        ['Insulation details', asValue(warehouse.insulationType) || 'Not available'],
+        ['Electrical workload', electricalValue],
+        ['Toilets', 'Available'],
+        ['Building Stability Certificate', 'Available'],
+        ['Fire safety details', fireSafetyValue || 'N/A'],
+        // `availability` is the closest existing column to the requested
+        // handover-timeline field; use it directly until a dedicated column
+        // is added.
+        ['Handover timeline', handoverValue],
     ].map((row, i) => {
         if (i < 2) return row; // header rows already shaped
         const [label, value] = row;
