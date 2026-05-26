@@ -14,6 +14,7 @@ router.get('/health', warehouseController.checkHealth);
 router.get('/api/warehouses', warehouseController.getWarehouses);
 router.post('/api/generate-ppt', warehouseController.generatePresentation);
 router.post('/api/generate-ppt-v2', extendedTimeoutMiddleware, warehouseController.generatePresentationV2);
+router.post('/api/generate-ppt-godamwale', extendedTimeoutMiddleware, warehouseController.generatePresentationGodamwale);
 
 // Add POST route for detailed presentation endpoint with extended timeout
 router.post('/api/generate-detailed-ppt', extendedTimeoutMiddleware, warehouseController.generateDetailedPresentation);

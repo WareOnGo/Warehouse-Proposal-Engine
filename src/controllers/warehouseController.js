@@ -1,6 +1,7 @@
 const warehouseService = require('../services/warehouseService');
 const pptService = require('../services/pptService');
 const pptServiceV2 = require('../services/pptServiceV2');
+const pptServiceGodamwale = require('../services/pptServiceGodamwale');
 const detailedPptService = require('../services/detailedPptService');
 const { logError, logWarn, logInfo } = require('../utils/logger');
 
@@ -178,10 +179,35 @@ const generatePresentationV2 = async (req, res) => {
     }
 };
 
+const generatePresentationGodamwale = async (req, res) => {
+    const { ids, selectedImages = {}, customDetails = {} } = req.body;
+    const warehouseIds = parseIds(ids);
+    if (warehouseIds.length === 0) {
+        logWarn('warehouseController', 'generatePresentationGodamwale', 'Invalid or no warehouse IDs provided', { bodyIds: ids });
+        return res.status(400).json({ error: 'Invalid or no Warehouse IDs provided.' });
+    }
+    try {
+        const warehouses = await warehouseService.findWarehousesByIds(warehouseIds);
+        if (!warehouses || warehouses.length === 0) {
+            logWarn('warehouseController', 'generatePresentationGodamwale', 'Warehouses not found', { warehouseIds });
+            return res.status(404).json({ error: `Warehouses with IDs ${warehouseIds.join(', ')} not found.` });
+        }
+        logInfo('warehouseController', 'generatePresentationGodamwale', 'Generating godamwale presentation', { warehouseIds, warehouseCount: warehouses.length });
+        const buffer = await pptServiceGodamwale.createPptBufferGodamwale(warehouses, selectedImages, customDetails);
+        logInfo('warehouseController', 'generatePresentationGodamwale', 'Successfully generated godamwale presentation', { warehouseIds, bufferSize: buffer.length });
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+        res.send(buffer);
+    } catch (error) {
+        logError('warehouseController', 'generatePresentationGodamwale', 'Failed to generate godamwale PPT', { warehouseIds, error: error.message, stack: error.stack });
+        res.status(500).json({ error: 'An internal server error occurred during godamwale PPT generation.' });
+    }
+};
+
 module.exports = {
     checkHealth,
     getWarehouses,
     generatePresentation,
     generatePresentationV2,
+    generatePresentationGodamwale,
     generateDetailedPresentation
 };
