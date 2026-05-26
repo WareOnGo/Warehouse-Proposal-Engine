@@ -247,7 +247,15 @@ async function generateDetailedSlideTci(pptx, warehouse, selectedPhotoUrls, opti
         ['Status of Land', cluValue],
         ['Area details', area],
         ['Rental per sq. ft.', asValue(warehouse.ratePerSqft) ? `${asValue(warehouse.ratePerSqft)} + GST` : 'On request'],
-        ['Eaves Height', asValue(warehouse.clearHeightFt) ? `${asValue(warehouse.clearHeightFt)} ft` : 'N/A'],
+        ['Eaves Height', (() => {
+            const v = asValue(warehouse.clearHeightFt);
+            if (!v) return 'N/A';
+            // Some rows already carry the unit ("10 ft", "10ft", "10 FT.") — strip
+            // any trailing ft/feet token before re-appending so we don't end up
+            // with "10 ft ft".
+            const stripped = String(v).replace(/\s*(ft|feet)\.?\s*$/i, '').trim();
+            return `${stripped} ft`;
+        })()],
         ['Type Of Flooring', asValue(warehouse.flooringType) || 'N/A'],
         ['Floor Load Capacity', asValue(warehouse.floorStrengthPerSqm) || 'N/A'],
         ['No. of docks', asValue(warehouse.numberOfDocks) ? `${asValue(warehouse.numberOfDocks)} Nos` : 'N/A'],
