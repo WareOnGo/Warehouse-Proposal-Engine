@@ -100,10 +100,50 @@ const rowHeights = (rows, colWidths) => rows.map(([label, value]) => {
 const IMAGE_EXT_RE = /\.(jpe?g|png|gif|webp|bmp)(?:$|\?)/i;
 const isImageUrl = (url) => typeof url === 'string' && IMAGE_EXT_RE.test(url);
 
+// pptxgenjs's `sizing.cover` uses the addImage call's top-level w/h as the
+// *source* image dimensions when computing the crop rect — passing the box's
+// w/h there makes every crop percentage zero and the image stretches. Reading
+// the real pixel dimensions from the file header lets us pass the true aspect
+// ratio at the top level while pinning placement via `sizing`.
+const readImageDimensions = (buf) => {
+    if (!buf || buf.length < 24) return null;
+    if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) {
+        return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+    }
+    if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) {
+        return { w: buf.readUInt16LE(6), h: buf.readUInt16LE(8) };
+    }
+    if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46
+        && buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50) {
+        const fourCC = buf.slice(12, 16).toString('ascii');
+        if (fourCC === 'VP8 ') return { w: buf.readUInt16LE(26) & 0x3FFF, h: buf.readUInt16LE(28) & 0x3FFF };
+        if (fourCC === 'VP8L') {
+            const b0 = buf[21], b1 = buf[22], b2 = buf[23], b3 = buf[24];
+            return { w: 1 + (((b1 & 0x3F) << 8) | b0), h: 1 + (((b3 & 0x0F) << 10) | (b2 << 2) | ((b1 & 0xC0) >> 6)) };
+        }
+        if (fourCC === 'VP8X') return { w: 1 + (buf[24] | (buf[25] << 8) | (buf[26] << 16)), h: 1 + (buf[27] | (buf[28] << 8) | (buf[29] << 16)) };
+    }
+    if (buf[0] === 0xFF && buf[1] === 0xD8) {
+        let i = 2;
+        while (i < buf.length - 9) {
+            if (buf[i] !== 0xFF) return null;
+            const marker = buf[i + 1];
+            if (marker === 0xD8 || marker === 0xD9) return null;
+            if (marker >= 0xC0 && marker <= 0xCF && marker !== 0xC4 && marker !== 0xC8 && marker !== 0xCC) {
+                return { h: buf.readUInt16BE(i + 5), w: buf.readUInt16BE(i + 7) };
+            }
+            i += 2 + buf.readUInt16BE(i + 2);
+        }
+        return null;
+    }
+    return null;
+};
+
 const fetchImage = async (url) => {
     const response = await axios.get(url, { responseType: 'arraybuffer' });
+    const buffer = Buffer.from(response.data);
     const mime = url.toLowerCase().includes('.png') ? 'image/png' : 'image/jpeg';
-    return `data:${mime};base64,${Buffer.from(response.data).toString('base64')}`;
+    return { data: `data:${mime};base64,${buffer.toString('base64')}`, dims: readImageDimensions(buffer) };
 };
 
 const addImageOrPlaceholder = async (pptx, slide, url, box) => {
@@ -112,8 +152,18 @@ const addImageOrPlaceholder = async (pptx, slide, url, box) => {
         return;
     }
     try {
-        const data = await fetchImage(url);
-        slide.addImage({ data, ...box, sizing: { type: 'cover', w: box.w, h: box.h } });
+        const { data, dims } = await fetchImage(url);
+        if (dims && dims.w > 0 && dims.h > 0) {
+            const sourceAspect = dims.w / dims.h;
+            const topW = 10, topH = 10 / sourceAspect;
+            slide.addImage({
+                data,
+                x: box.x, y: box.y, w: topW, h: topH,
+                sizing: { type: 'cover', w: box.w, h: box.h, x: 0, y: 0 },
+            });
+        } else {
+            slide.addImage({ data, ...box, sizing: { type: 'cover', w: box.w, h: box.h } });
+        }
     } catch (e) {
         slide.addShape(pptx.shapes.RECTANGLE, { ...box, fill: { color: COLORS.sidebar }, line: { color: COLORS.divider, width: 0.5 } });
     }
@@ -232,10 +282,7 @@ async function generateDetailedSlideGodamwale(pptx, warehouse, selectedPhotoUrls
         || splitInTwo(warehouse.clearHeightFt)
         || warehouse.clearHeightFt
         || 'N/A';
-    const flooringValue = pair(warehouse.flooringType, warehouse.floorStrengthPerSqm)
-        || splitInTwo(warehouse.otherSpecifications)
-        || warehouse.otherSpecifications
-        || 'N/A';
+    const flooringValue = [warehouse.flooringType || 'Unverified', warehouse.floorStrengthPerSqm || 'Unverified'];
 
     const specRows = [
         ['Offered Area', area],

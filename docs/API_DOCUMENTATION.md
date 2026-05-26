@@ -46,6 +46,9 @@ Notes:
 2. `GET /api/warehouses?ids=...`
 3. `POST /api/generate-ppt`
 4. `POST /api/generate-detailed-ppt`
+5. `POST /api/generate-ppt-v2`
+6. `POST /api/generate-ppt-godamwale`
+7. `POST /api/generate-ppt-tci`
 
 ---
 
@@ -370,6 +373,262 @@ Important current behavior:
 
 ---
 
+## 5) Generate Godamwale-Branded PPT
+
+A branded variant of the proposal deck using the Godamwale visual theme
+(`src/slides/godamwale/themeGodamwale.js`). It produces: title slide → one
+warehouse detail slide per ID → contact slide. Photos come exclusively from
+`selectedImages[warehouseId]`; `photos` in the database are not used.
+
+### Request
+
+`POST /api/generate-ppt-godamwale`
+
+Headers:
+
+```http
+Content-Type: application/json
+```
+
+### Request Body Contract
+
+```ts
+interface GenerateGodamwalePptRequest {
+  ids: string; // required, comma-separated positive integers
+  selectedImages?: Record<string, string[]>; // key = warehouse ID as string
+  customDetails?: GodamwaleCustomDetails;
+}
+
+interface GodamwaleCustomDetails {
+  // Title slide
+  clientName?: string;     // preferred
+  companyName?: string;    // fallback for title when clientName absent
+  clientRequirement?: string;
+
+  // Contact slide (Godamwale-specific defaults applied if omitted)
+  pocName?: string;        // default: "Dhaval Gupta"
+  pocContact?: string;     // default: "+91 8318825478"
+}
+```
+
+### Request Example
+
+```json
+{
+  "ids": "12,15,21",
+  "selectedImages": {
+    "12": ["https://example.com/12a.jpg", "https://example.com/12b.jpg"],
+    "15": ["https://example.com/15a.jpg"],
+    "21": []
+  },
+  "customDetails": {
+    "clientName": "Acme Logistics",
+    "clientRequirement": "Bhiwandi - 50,000 sqft",
+    "pocName": "Dhaval Gupta",
+    "pocContact": "+91 8318825478"
+  }
+}
+```
+
+### Success Response
+
+`200 OK`
+
+```http
+Content-Type: application/vnd.openxmlformats-officedocument.presentationml.presentation
+```
+
+Body: binary `.pptx`.
+
+Important current behavior:
+
+- `ids` is **required**. Empty/invalid → `400`.
+- Backend does not set `Content-Disposition`; frontend must set the filename.
+- If `selectedImages[id]` is omitted/empty for a warehouse, that warehouse's
+  detail slide is generated with no photos (DB `photos` field is not used).
+- Defaults `pocName`/`pocContact` are intentional Godamwale branding values —
+  override only if a different POC should appear.
+
+### Error Responses
+
+`400 Bad Request`
+
+```json
+{ "error": "Invalid or no Warehouse IDs provided." }
+```
+
+`404 Not Found`
+
+```json
+{ "error": "Warehouses with IDs 12, 15, 21 not found." }
+```
+
+`500 Internal Server Error`
+
+```json
+{ "error": "An internal server error occurred during godamwale PPT generation." }
+```
+
+---
+
+## 6) Generate TCI-Branded PPT
+
+A branded variant using the TCI visual theme
+(`src/slides/tci/themeTci.js`), at `LAYOUT_4x3` (10" × 7.5") to match the
+source TCI template aspect ratio. Deck composition: title → one warehouse
+detail slide per warehouse → thank-you slide.
+
+### Request
+
+`POST /api/generate-ppt-tci`
+
+Headers:
+
+```http
+Content-Type: application/json
+```
+
+### Request Body Contract
+
+```ts
+interface GenerateTciPptRequest {
+  ids?: string;                              // OPTIONAL — see placeholder behavior below
+  selectedImages?: Record<string, string[]>; // key = warehouse ID as string
+  customDetails?: TciCustomDetails;
+}
+
+interface TciCustomDetails {
+  // Currently the TCI title slide is layout-only and does not read these
+  // fields (see src/slides/tci/titleSlideTci.js). They are accepted for
+  // forward-compatibility — sending them is safe but has no rendering effect today.
+  clientName?: string;
+  companyName?: string;
+  clientRequirement?: string;
+  pocName?: string;
+  pocContact?: string;
+}
+```
+
+### Placeholder / Preview Behavior (TCI-Specific)
+
+Unlike every other PPT endpoint, the TCI endpoint **tolerates a missing or
+empty `ids`**:
+
+- If `ids` is omitted, empty, or parses to no valid positive integers, the
+  service falls back to a built-in `PLACEHOLDER_WAREHOUSES` list
+  (`src/services/pptServiceTci.js`) so the layout can be previewed before the
+  real data pipeline is wired up.
+- If `ids` **is** supplied but none of the IDs exist in DB → `404`.
+- If `ids` is supplied and at least one ID is found, only the found warehouses
+  are rendered (consistent with other endpoints).
+
+### Photo Source Precedence
+
+For each warehouse `w`:
+
+1. If `selectedImages[w.id]` is non-empty, those URLs are used.
+2. Otherwise, if `w.photos` is a non-empty comma-separated string, it is split
+   on `,`, trimmed, and used.
+3. Otherwise no photos render for that warehouse.
+
+This differs from the standard, detailed, and Godamwale flows, which use
+`selectedImages` exclusively.
+
+### Request Examples
+
+Preview with placeholder data:
+
+```json
+{}
+```
+
+Real data:
+
+```json
+{
+  "ids": "31,32",
+  "selectedImages": {
+    "31": ["https://example.com/31a.jpg"],
+    "32": ["https://example.com/32a.jpg", "https://example.com/32b.jpg"]
+  },
+  "customDetails": {
+    "clientName": "TCI Express",
+    "clientRequirement": "Nelamangala — 75,000 sqft"
+  }
+}
+```
+
+### Success Response
+
+`200 OK`
+
+```http
+Content-Type: application/vnd.openxmlformats-officedocument.presentationml.presentation
+```
+
+Body: binary `.pptx`.
+
+### Error Responses
+
+`404 Not Found` (only when `ids` was provided but none matched):
+
+```json
+{ "error": "Warehouses with IDs 31, 32 not found." }
+```
+
+`500 Internal Server Error`:
+
+```json
+{ "error": "An internal server error occurred during TCI PPT generation." }
+```
+
+Note: there is **no `400`** for missing `ids` on this endpoint — empty input
+triggers placeholder mode rather than an error.
+
+### Placeholder Warehouse Shape (for reference)
+
+Exported from `src/services/pptServiceTci.js` as `PLACEHOLDER_WAREHOUSES`. Each
+entry illustrates the fields the TCI detailed slide expects when real data is
+plugged in:
+
+```ts
+interface TciWarehouseShape {
+  id: string | number;
+  projectName?: string;
+  city?: string;
+  state?: string;
+  warehouseType?: string;                       // e.g. "Ready To Move – PEB Structure"
+  totalSpaceSqft?: number[] | number;
+  ratePerSqft?: number | string;
+  clearHeightFt?: number | string;
+  centreHeight?: number | string;
+  flooringType?: string;                        // e.g. "VDF Flooring"
+  floorStrengthPerSqm?: string;                 // e.g. "5 T/sqm"
+  numberOfDocks?: string | number;
+  availability?: string;                        // e.g. "Immediate", "March 2026"
+  googleLocation?: string;
+  WarehouseData?: {
+    latitude?: number;
+    longitude?: number;
+    landType?: string;
+    fireNocAvailable?: boolean;
+    fireSafetyMeasures?: string;
+  };
+  photos?: string;                              // comma-separated URLs (optional)
+}
+```
+
+---
+
+## V2 Endpoint (Brief)
+
+`POST /api/generate-ppt-v2` accepts the same request shape as
+`POST /api/generate-ppt-godamwale` (`ids`, `selectedImages`, `customDetails`)
+but uses the V2 layout in `src/slides/v2/`. Same `400` / `404` / `500`
+semantics as the standard endpoint; `ids` is required.
+
+---
+
 ## Internal Enrichment Model (Detailed Flow)
 
 This is not returned by API directly, but useful for frontend and AI tooling context.
@@ -498,9 +757,40 @@ export interface GenerateDetailedPptRequest {
   customDetails?: DetailedCustomDetails;
 }
 
+export interface GodamwaleCustomDetails {
+  clientName?: string;
+  companyName?: string;
+  clientRequirement?: string;
+  pocName?: string;   // default "Dhaval Gupta"
+  pocContact?: string; // default "+91 8318825478"
+}
+
+export interface GenerateGodamwalePptRequest {
+  ids: WarehouseIdCsv;
+  selectedImages?: Record<string, string[]>;
+  customDetails?: GodamwaleCustomDetails;
+}
+
+export interface TciCustomDetails {
+  // Accepted but not yet rendered by titleSlideTci.js — safe to send.
+  clientName?: string;
+  companyName?: string;
+  clientRequirement?: string;
+  pocName?: string;
+  pocContact?: string;
+}
+
+export interface GenerateTciPptRequest {
+  ids?: WarehouseIdCsv; // OPTIONAL — empty triggers placeholder preview
+  selectedImages?: Record<string, string[]>;
+  customDetails?: TciCustomDetails;
+}
+
 // PPT responses are binary blobs (application/vnd.openxmlformats-officedocument.presentationml.presentation)
 export type GeneratePptResponse = Blob;
 export type GenerateDetailedPptResponse = Blob;
+export type GenerateGodamwalePptResponse = Blob;
+export type GenerateTciPptResponse = Blob;
 ```
 
 ---

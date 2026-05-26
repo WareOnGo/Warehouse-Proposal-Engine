@@ -256,8 +256,8 @@ async function generateDetailedSlideTci(pptx, warehouse, selectedPhotoUrls, opti
             const stripped = String(v).replace(/\s*(ft|feet)\.?\s*$/i, '').trim();
             return `${stripped} ft`;
         })()],
-        ['Type Of Flooring', asValue(warehouse.flooringType) || 'N/A'],
-        ['Floor Load Capacity', asValue(warehouse.floorStrengthPerSqm) || 'N/A'],
+        ['Type Of Flooring', asValue(warehouse.flooringType) || 'Unverified'],
+        ['Floor Load Capacity', asValue(warehouse.floorStrengthPerSqm) || 'Unverified'],
         ['No. of docks', asValue(warehouse.numberOfDocks) ? `${asValue(warehouse.numberOfDocks)} Nos` : 'N/A'],
         // PM-requested fallbacks. The 'Running Canopy' / 'Turbo vent' defaults
         // are temporary stand-ins until the backfill exercise populates these
