@@ -1,5 +1,6 @@
 const { COLORS, FONT } = require('./themeGodamwale');
 const { addContentHeader, addWatermark, addBottomBar } = require('./chromeGodamwale');
+const { formatLocationText } = require('../../utils/textFormat');
 
 function generateIndexSlideGodamwale(pptx, warehouses) {
     const slide = pptx.addSlide();
@@ -20,7 +21,7 @@ function generateIndexSlideGodamwale(pptx, warehouses) {
     const bodyCellBase = { fontFace: FONT, fontSize: 8, color: COLORS.navy, valign: 'middle', align: 'center' };
 
     const rows = warehouses.map((w, i) => {
-        const location = [w.city, w.state].filter(Boolean).join(', ') || w.address || 'N/A';
+        const location = formatLocationText(w.address) || formatLocationText([w.city, w.state].filter(Boolean).join(', ')) || 'N/A';
         const area = Array.isArray(w.totalSpaceSqft) ? w.totalSpaceSqft.join(', ') : (w.totalSpaceSqft || 'N/A');
         return [
             { text: String(i + 1), options: bodyCellBase },

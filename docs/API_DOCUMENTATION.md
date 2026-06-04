@@ -641,6 +641,7 @@ interface EnrichedWarehouse {
   city?: string;
   state?: string;
   googleLocation?: string | null;
+  
   totalSpaceSqft?: number[] | number | null;
   warehouseType?: string | null;
   clearHeightFt?: string | null;
