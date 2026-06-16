@@ -1,6 +1,6 @@
-const axios = require('axios');
 const { COLORS, FONT } = require('./themeTci');
 const { addOptionSlideChrome } = require('./chromeTci');
+const { fetchImage } = require('../../utils/image');
 
 const MAX_CELL_CHARS = 110;
 const clamp = (s) => {
@@ -23,59 +23,6 @@ const asValue = (v) => {
 
 const IMAGE_EXT_RE = /\.(jpe?g|png|gif|webp|bmp)(?:$|\?)/i;
 const isImageUrl = (url) => typeof url === 'string' && IMAGE_EXT_RE.test(url);
-
-// Decode pixel dimensions from the file's own header bytes. pptxgenjs's
-// `sizing.cover` path uses the addImage call's top-level w/h as the *source*
-// image dimensions when computing the crop rect — so if we pass the box w/h
-// at the top level (matching `sizing.w/h`), every crop percentage works out
-// to zero and the image stretches to fill instead of cropping. Reading the
-// real source dimensions lets us pass the true aspect ratio at the top level
-// while still pinning the placement via `sizing`.
-const readImageDimensions = (buf) => {
-    if (!buf || buf.length < 24) return null;
-    // PNG: 8-byte signature, then IHDR with width/height as big-endian uint32.
-    if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) {
-        return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
-    }
-    // GIF: width/height at offset 6, little-endian uint16.
-    if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) {
-        return { w: buf.readUInt16LE(6), h: buf.readUInt16LE(8) };
-    }
-    // WebP (VP8/VP8L/VP8X) inside RIFF container.
-    if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46
-        && buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50) {
-        const fourCC = buf.slice(12, 16).toString('ascii');
-        if (fourCC === 'VP8 ') return { w: buf.readUInt16LE(26) & 0x3FFF, h: buf.readUInt16LE(28) & 0x3FFF };
-        if (fourCC === 'VP8L') {
-            const b0 = buf[21], b1 = buf[22], b2 = buf[23], b3 = buf[24];
-            return { w: 1 + (((b1 & 0x3F) << 8) | b0), h: 1 + (((b3 & 0x0F) << 10) | (b2 << 2) | ((b1 & 0xC0) >> 6)) };
-        }
-        if (fourCC === 'VP8X') return { w: 1 + (buf[24] | (buf[25] << 8) | (buf[26] << 16)), h: 1 + (buf[27] | (buf[28] << 8) | (buf[29] << 16)) };
-    }
-    // JPEG: walk markers until SOF (0xC0–0xCF, excluding DHT/DAC/DRI), read 16-bit height then width.
-    if (buf[0] === 0xFF && buf[1] === 0xD8) {
-        let i = 2;
-        while (i < buf.length - 9) {
-            if (buf[i] !== 0xFF) return null;
-            const marker = buf[i + 1];
-            if (marker === 0xD8 || marker === 0xD9) return null;
-            // SOFn frame markers carry the image dimensions; skip DHT/DAC/DRI which share the 0xC_ range.
-            if (marker >= 0xC0 && marker <= 0xCF && marker !== 0xC4 && marker !== 0xC8 && marker !== 0xCC) {
-                return { h: buf.readUInt16BE(i + 5), w: buf.readUInt16BE(i + 7) };
-            }
-            i += 2 + buf.readUInt16BE(i + 2);
-        }
-        return null;
-    }
-    return null;
-};
-
-const fetchImage = async (url) => {
-    const response = await axios.get(url, { responseType: 'arraybuffer' });
-    const buffer = Buffer.from(response.data);
-    const mime = url.toLowerCase().includes('.png') ? 'image/png' : 'image/jpeg';
-    return { data: `data:${mime};base64,${buffer.toString('base64')}`, dims: readImageDimensions(buffer) };
-};
 
 const addImageOrPlaceholder = async (pptx, slide, url, box) => {
     if (!url) {

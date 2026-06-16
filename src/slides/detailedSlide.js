@@ -1,6 +1,7 @@
 // ppt-slides/detailedSlide.js
 const axios = require('axios');
 const { logError, logWarn } = require('../utils/logger');
+const { normalizeImageBuffer } = require('../utils/image');
 
 /**
  * Generate detailed slides for a warehouse - split into location and technical slides
@@ -489,13 +490,9 @@ async function renderWarehouseImage(pptx, slide, warehouse, x, y, width) {
         }
       });
 
-      // Detect image type
-      const imageType = imageUrl.toLowerCase().includes('.png')
-        ? 'image/png'
-        : 'image/jpeg';
-
-      // Convert to base64 data URL
-      const base64Image = `data:${imageType};base64,${Buffer.from(response.data).toString('base64')}`;
+      // Convert to base64 data URL, normalising EXIF orientation (phone uploads)
+      // since PPT renderers ignore the EXIF tag and would show rotated photos sideways.
+      const { data: base64Image } = await normalizeImageBuffer(Buffer.from(response.data), imageUrl);
 
       // Add image to slide
       slide.addImage({
@@ -889,13 +886,9 @@ async function addImageToSlide(pptx, slide, url, options, warehouseId) {
       timeout: 10000
     });
 
-    // Detect image type from URL
-    const imageType = url.toLowerCase().includes('.png')
-      ? 'image/png'
-      : 'image/jpeg';
-
-    // Convert to base64 data URL
-    const base64Image = `data:${imageType};base64,${Buffer.from(response.data).toString('base64')}`;
+    // Convert to base64 data URL, normalising EXIF orientation (phone uploads)
+    // since PPT renderers ignore the EXIF tag and would show rotated photos sideways.
+    const { data: base64Image } = await normalizeImageBuffer(Buffer.from(response.data), url);
 
     // Add image to slide
     slide.addImage({
