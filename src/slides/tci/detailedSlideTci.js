@@ -165,8 +165,8 @@ async function generateDetailedSlideTci(pptx, warehouse, selectedPhotoUrls, opti
     addOptionSlideChrome(slide);
 
     const projectName = warehouse.projectName
-        || [warehouse.city, warehouse.state].filter(Boolean).join(', ')
         || warehouse.address
+        || [warehouse.city, warehouse.state].filter(Boolean).join(', ')
         || `Property ${warehouse.id}`;
 
     const wd = warehouse.WarehouseData || {};

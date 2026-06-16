@@ -242,7 +242,7 @@ async function generateDetailedSlideGodamwale(pptx, warehouse, selectedPhotoUrls
 
     const locationLabelY = 0.65;
     sectionLabel(slide, 'Location Details', locationLabelY - LABEL_LIFT);
-    const locationLabel = [warehouse.city, warehouse.state].filter(Boolean).join(', ') || warehouse.address || 'N/A';
+    const locationLabel = warehouse.address || [warehouse.city, warehouse.state].filter(Boolean).join(', ') || 'N/A';
     const lat = warehouse.WarehouseData?.latitude;
     const lng = warehouse.WarehouseData?.longitude;
     const hasCoords = typeof lat === 'number' && typeof lng === 'number';
