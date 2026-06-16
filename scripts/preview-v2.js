@@ -4,6 +4,11 @@
  *
  *   node scripts/preview-v2.js <id1,id2,...> [--client "Acme Corp"] [--poc "Name"] [--contact "+91 ..."] [--port 4900] [--no-open]
  *
+ * Display flags (each redacts content when present):
+ *   --no-commercials   rent shows "Available on Demand"
+ *   --no-maps          Google Maps shows "Available on Demand"
+ *   --no-poc           the final WareOnGo POC slide is omitted
+ *
  * Generates a v2 .pptx for the given warehouse IDs, converts it to PNGs via
  * LibreOffice + pdftoppm, and serves a thumbnail page at http://localhost:<port>.
  */
@@ -40,6 +45,9 @@ const pocName = flag('poc') || 'Preview POC';
 const pocContact = flag('contact') || '+91 9999999999';
 const port = parseInt(flag('port') || '4900', 10);
 const shouldOpen = flag('no-open') !== true;
+const commercials = flag('no-commercials') !== true;
+const mapsLocation = flag('no-maps') !== true;
+const pocSlide = flag('no-poc') !== true;
 
 const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wog-preview-'));
 const pptxPath = path.join(workDir, 'preview.pptx');
@@ -66,6 +74,9 @@ const pdfPath = path.join(workDir, 'preview.pdf');
         clientName,
         pocName,
         pocContact,
+        commercials,
+        mapsLocation,
+        pocSlide,
     });
     fs.writeFileSync(pptxPath, buffer);
     console.log(`  ${pptxPath} (${buffer.length} bytes)`);

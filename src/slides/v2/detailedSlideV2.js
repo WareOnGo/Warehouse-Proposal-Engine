@@ -233,7 +233,11 @@ const layoutPhotos = async (pptx, slide, photos) => {
     await Promise.all(photos.map((url, i) => addImageOrPlaceholder(pptx, slide, url, boxes[i])));
 };
 
-async function generateDetailedSlideV2(pptx, warehouse, selectedPhotoUrls, optionIndex) {
+async function generateDetailedSlideV2(pptx, warehouse, selectedPhotoUrls, optionIndex, flags = {}) {
+    // Display flags default to true (show real data). When false, the field is
+    // redacted to "Available on Demand".
+    const showCommercials = flags.commercials !== false;
+    const showMapsLocation = flags.mapsLocation !== false;
     const slide = pptx.addSlide();
     slide.background = { color: COLORS.bg };
 
@@ -276,9 +280,9 @@ async function generateDetailedSlideV2(pptx, warehouse, selectedPhotoUrls, optio
         || (hasCoords ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}` : null);
     // Display text: lat/long when we have coords, otherwise "See link".
     const mapsText = hasCoords ? `${lat}, ${lng}` : 'See link';
-    const mapsValue = mapsUrl
+    const mapsValue = (showMapsLocation && mapsUrl)
         ? { runs: [{ text: mapsText, options: { hyperlink: { url: mapsUrl }, color: '1A56DB', underline: { style: 'sng' } } }] }
-        : 'Available on demand';
+        : 'Available on Demand';
     const propertyRows = [
         ['Address', locationLabel],
         ['Google Maps', mapsValue],
@@ -330,7 +334,7 @@ async function generateDetailedSlideV2(pptx, warehouse, selectedPhotoUrls, optio
     const commercialsLabelY = specsTableY + specsHeight + TABLE_TO_LABEL;
     sectionLabel(slide, 'Commercials', commercialsLabelY - LABEL_LIFT);
     const commercialRows = [
-        ['Rent per sq.ft (INR)', warehouse.ratePerSqft || 'On request'],
+        ['Rent per sq.ft (INR)', showCommercials ? (warehouse.ratePerSqft || 'On request') : 'Available on Demand'],
     ];
     buildTable(slide, commercialRows, commercialsLabelY + LABEL_TO_TABLE);
 

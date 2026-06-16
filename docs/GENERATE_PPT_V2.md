@@ -25,7 +25,11 @@ The v2 deck differs from `/api/generate-ppt` in layout (sidebar tables, photo gr
   "customDetails": {                     // optional — defaults to {}
     "clientName": "Acme Logistics Pvt Ltd",
     "pocName": "Rajesh Kumar",
-    "pocContact": "+91 98765 43210"
+    "pocContact": "+91 98765 43210",
+
+    "commercials": true,                 // optional — defaults to true
+    "mapsLocation": true,                // optional — defaults to true
+    "pocSlide": true                     // optional — defaults to true
   }
 }
 ```
@@ -37,6 +41,11 @@ The v2 deck differs from `/api/generate-ppt` in layout (sidebar tables, photo gr
 | `customDetails.clientName` | `string` | Shown on the cover slide. Falls back to `"Client Name"`. |
 | `customDetails.pocName` | `string` | Shown on the contact slide. Falls back to `"Dhaval Gupta"`. |
 | `customDetails.pocContact` | `string` | Shown on the contact slide. Falls back to `"+91 8318825478"`. |
+| `customDetails.commercials` | `boolean` | Defaults to `true`. When `false`, the **Rent per sq.ft (INR)** cell on every detail slide reads `"Available on Demand"` instead of the real rate. |
+| `customDetails.mapsLocation` | `boolean` | Defaults to `true`. When `false`, the **Google Maps** row on every detail slide reads `"Available on Demand"` instead of a coordinate link. |
+| `customDetails.pocSlide` | `boolean` | Defaults to `true`. When `false`, the final WareOnGo POC / contact slide is omitted from the deck. |
+
+> **Flag semantics:** all three flags default to `true`, so existing callers that omit them get the full, unredacted deck. Only an explicit `false` redacts content. Any value other than `false` (including `true`, `undefined`, or the field being absent) is treated as enabled.
 
 ### Behaviour worth knowing
 
@@ -44,13 +53,14 @@ The v2 deck differs from `/api/generate-ppt` in layout (sidebar tables, photo gr
 - **Photo URLs are filtered.** Any URL that doesn't end in `.jpg / .jpeg / .png / .gif / .webp / .bmp` (with optional query string) is dropped before counting and layout, so a mixed image+video list won't produce a blank tile.
 - **Photo count drives the layout.** 1 photo → single landscape; 2 photos → side-by-side landscape tiles; 3 photos → 1 wide on top + 2 below; 4 photos → 2×2 grid. Anything beyond 4 is sliced off.
 - **Warehouse order is preserved** from the order given in `ids`.
+- **Redaction flags apply to the whole deck.** `commercials` and `mapsLocation` redact the corresponding field on *every* detail slide (they are deck-level, not per-warehouse). `pocSlide` toggles only the final contact slide; the rest of the deck is unchanged.
 
 ## Responses
 
 ### 200 OK
 
 - **Content-Type:** `application/vnd.openxmlformats-officedocument.presentationml.presentation`
-- **Body:** binary `.pptx`. Slide order is: cover → index → one detail slide per warehouse → contact.
+- **Body:** binary `.pptx`. Slide order is: cover → index → one detail slide per warehouse → contact. The trailing contact slide is omitted when `customDetails.pocSlide` is `false`.
 
 ### 400 Bad Request
 
@@ -116,6 +126,25 @@ const res = await axios.post(
 fs.writeFileSync('proposal.pptx', res.data);
 ```
 
+### Redacted deck (flags off)
+
+Hide rent, the maps link, and the POC slide — useful for early-stage shares:
+
+```bash
+curl -X POST http://localhost:3000/api/generate-ppt-v2 \
+  -H "Content-Type: application/json" \
+  -o proposal.pptx \
+  -d '{
+    "ids": "298,299,569",
+    "customDetails": {
+      "clientName": "Acme Logistics Pvt Ltd",
+      "commercials": false,
+      "mapsLocation": false,
+      "pocSlide": false
+    }
+  }'
+```
+
 ## Local preview
 
 To render the same deck without hitting the HTTP endpoint:
@@ -128,3 +157,12 @@ node scripts/preview-v2.js 298,299,569,1638 \
 ```
 
 Generates a `.pptx`, converts it to PDF via LibreOffice, rasterises to PNG, and serves a thumbnail page at `http://localhost:4900`.
+
+The redaction flags map to CLI switches (each present switch turns the corresponding flag off):
+
+```bash
+node scripts/preview-v2.js 298,299,569 \
+  --no-commercials \   # rent → "Available on Demand"
+  --no-maps \          # Google Maps → "Available on Demand"
+  --no-poc             # drop the final POC slide
+```
