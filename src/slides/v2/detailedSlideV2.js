@@ -151,10 +151,69 @@ const readImageDimensions = (buf) => {
     return null;
 };
 
+// sharp is a native (libvips) module. Load it lazily and tolerate its absence:
+// if the binary ever fails to resolve (e.g. a musl/Alpine build hiccup), we fall
+// back to embedding the raw bytes — exactly the pre-normalisation behaviour — so
+// a deploy can never be bricked by an image-rotation feature.
+const sharp = (() => {
+    try { return require('sharp'); } catch (_) { return null; }
+})();
+
+// Cheap EXIF Orientation read — scans the JPEG APP1/Exif segment for tag 0x0112
+// without decoding any pixels. Returns 1..8, or null when absent / not a JPEG.
+// (Only JPEGs from cameras/phones carry this; PNG/WebP here effectively never do.)
+const readExifOrientation = (buf) => {
+    if (!buf || buf.length < 4 || buf[0] !== 0xFF || buf[1] !== 0xD8) return null;
+    let i = 2;
+    while (i < buf.length - 4) {
+        if (buf[i] !== 0xFF) { i++; continue; }
+        const marker = buf[i + 1];
+        if (marker === 0xD9 || marker === 0xDA) break; // EOI or start of scan
+        const len = buf.readUInt16BE(i + 2);
+        if (marker === 0xE1) { // APP1
+            const seg = buf.slice(i + 4, i + 2 + len);
+            if (seg.slice(0, 6).toString('ascii') === 'Exif\0\0') {
+                const tiff = seg.slice(6);
+                const le = tiff.slice(0, 2).toString('ascii') === 'II';
+                const rd16 = (o) => (le ? tiff.readUInt16LE(o) : tiff.readUInt16BE(o));
+                const rd32 = (o) => (le ? tiff.readUInt32LE(o) : tiff.readUInt32BE(o));
+                try {
+                    const ifd0 = rd32(4);
+                    const n = rd16(ifd0);
+                    for (let e = 0; e < n; e++) {
+                        const off = ifd0 + 2 + e * 12;
+                        if (rd16(off) === 0x0112) return rd16(off + 8);
+                    }
+                } catch (_) { return null; }
+                return null;
+            }
+        }
+        i += 2 + len;
+    }
+    return null;
+};
+
 const fetchImage = async (url) => {
     const response = await axios.get(url, { responseType: 'arraybuffer' });
-    const buffer = Buffer.from(response.data);
-    const mime = url.toLowerCase().includes('.png') ? 'image/png' : 'image/jpeg';
+    let buffer = Buffer.from(response.data);
+    let mime = url.toLowerCase().includes('.png') ? 'image/png' : 'image/jpeg';
+
+    // Phone field-uploads (e.g. "scout_" photos) store landscape pixels plus an
+    // EXIF Orientation tag telling viewers to rotate. PowerPoint and LibreOffice
+    // ignore that tag, so the image renders sideways. Bake the rotation into the
+    // pixels — but ONLY when the tag actually calls for it (orientation 2..8), so
+    // the common already-upright case never gets decoded/re-encoded.
+    const orientation = mime === 'image/jpeg' ? readExifOrientation(buffer) : null;
+    if (sharp && orientation && orientation !== 1) {
+        try {
+            // .rotate() with no angle auto-applies EXIF orientation and strips the
+            // tag; the re-encoded buffer then reports its corrected (rotated)
+            // dimensions, which also fixes the cover-crop aspect ratio downstream.
+            buffer = await sharp(buffer).rotate().jpeg({ quality: 85 }).toBuffer();
+            mime = 'image/jpeg';
+        } catch (_) { /* keep the original bytes if normalisation fails */ }
+    }
+
     return { data: `data:${mime};base64,${buffer.toString('base64')}`, dims: readImageDimensions(buffer) };
 };
 
