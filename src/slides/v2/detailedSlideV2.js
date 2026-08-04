@@ -1,6 +1,7 @@
 const { COLORS, FONT } = require('./themeV2');
 const { addFooter, addTopRightLogo } = require('./chromeV2');
 const { fetchImage } = require('../../utils/image');
+const { formatHandover } = require('../../utils/handover');
 
 const SIDEBAR_W = 2.85;
 const SLIDE_H = 5.625;
@@ -281,7 +282,7 @@ async function generateDetailedSlideV2(pptx, warehouse, selectedPhotoUrls, optio
         ['Flooring', flooringValue],
         ['Fire Safety', wd.fireSafetyMeasures || 'N/A'],
         ['Compliances', [cluValue, fireNocValue]],
-        ['Handover', warehouse.availability || 'Immediate'],
+        ['Handover', formatHandover(warehouse.handoverDate)],
     ];
     const specsHeight = buildTable(slide, specRows, specsTableY, true);
 

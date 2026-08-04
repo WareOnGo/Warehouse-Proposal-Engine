@@ -1,6 +1,7 @@
 const { COLORS, FONT } = require('./themeGodamwale');
 const { addContentHeader, addWatermark, addBottomBar } = require('./chromeGodamwale');
 const { formatLocationText } = require('../../utils/textFormat');
+const { formatHandover } = require('../../utils/handover');
 
 function generateIndexSlideGodamwale(pptx, warehouses) {
     const slide = pptx.addSlide();
@@ -29,7 +30,7 @@ function generateIndexSlideGodamwale(pptx, warehouses) {
             { text: location, options: bodyCellBase },
             { text: w.ratePerSqft != null ? `${w.ratePerSqft}/-` : 'On request', options: bodyCellBase },
             { text: String(area), options: bodyCellBase },
-            { text: w.availability || 'Immediate', options: bodyCellBase },
+            { text: formatHandover(w.handoverDate), options: bodyCellBase },
         ];
     });
 
