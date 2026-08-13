@@ -82,7 +82,11 @@ model Warehouse {
   passengerLiftCount          String?
   serviceLiftCount            String?
   totalFloors                 String?
-  hasBorewell                 Boolean?
+  micromarket                 String[]             @default([])
+  handoverLeadUnit            HandoverLeadUnit?
+  handoverLeadValue           Int?
+  handoverType                HandoverType?
+  waterSupply                 WaterSupply?
   WarehouseData               WarehouseData?
   WarehouseVisitNote          WarehouseVisitNote[]
 
@@ -231,6 +235,8 @@ model Ticket {
   updatedAt        DateTime
   approvedAmount   Decimal?      @db.Decimal(12, 2)
   expenseDate      DateTime?     @db.Date
+  clientName       String?
+  dealName         String?
   Attachment       Attachment[]
   Employee         Employee      @relation(fields: [submittedByEmpID], references: [empID])
   TicketEvent      TicketEvent[]
@@ -344,11 +350,11 @@ model opportunities {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model StagedWarehouse {
-  id                          String        @id
-  reviewStatus                StagingStatus @default(PENDING)
+  id                          String            @id
+  reviewStatus                StagingStatus     @default(PENDING)
   source                      String
   submittedBy                 String
-  submittedAt                 DateTime      @default(now())
+  submittedAt                 DateTime          @default(now())
   reviewedBy                  String?
   reviewedAt                  DateTime?
   rejectionReason             String?
@@ -416,8 +422,8 @@ model StagedWarehouse {
   centreHeight                String?
   listing_type                String?
   status                      String?
-  handoverDate                DateTime?     @db.Date
-  lockInDate                  DateTime?     @db.Date
+  handoverDate                DateTime?         @db.Date
+  lockInDate                  DateTime?         @db.Date
   cam                         String?
   chargeableArea              Int?
   latitude                    Float?
@@ -437,7 +443,10 @@ model StagedWarehouse {
   passengerLiftCount          String?
   serviceLiftCount            String?
   totalFloors                 String?
-  hasBorewell                 Boolean?
+  handoverLeadUnit            HandoverLeadUnit?
+  handoverLeadValue           Int?
+  handoverType                HandoverType?
+  waterSupply                 WaterSupply?
 
   @@index([reviewStatus, submittedAt])
 }
@@ -563,6 +572,30 @@ model task {
   @@index([sender_number, done])
 }
 
+model Guide {
+  id              Int         @id @default(autoincrement())
+  slug            String      @unique
+  title           String
+  seoTitle        String
+  description     String
+  summary         String
+  keywords        String[]    @default([])
+  blocks          Json
+  faqs            Json
+  related         String[]    @default([])
+  datePublished   DateTime?   @db.Date
+  dateModified    DateTime    @db.Date
+  sortOrder       Int         @default(0)
+  status          GuideStatus @default(DRAFT)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime
+  deployedAt      DateTime?
+  deployedContent Json?
+  author          String?
+
+  @@index([status, sortOrder])
+}
+
 enum AttachmentKind {
   IMAGE
   DOCUMENT
@@ -582,4 +615,28 @@ enum StagingStatus {
   IN_REVIEW
   APPROVED
   REJECTED
+}
+
+enum GuideStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum HandoverLeadUnit {
+  DAYS
+  WEEKS
+  MONTHS
+}
+
+enum HandoverType {
+  FIXED
+  VARIABLE
+}
+
+enum WaterSupply {
+  NONE
+  BOREWELL
+  PIPELINE
+  TANKER
+  OTHERS
 }
