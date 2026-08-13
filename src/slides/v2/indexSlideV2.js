@@ -30,7 +30,7 @@ function generateIndexSlideV2(pptx, warehouses) {
             { text: location, options: bodyCellBase },
             { text: w.ratePerSqft != null ? `${w.ratePerSqft}/-` : 'On request', options: bodyCellBase },
             { text: String(area), options: bodyCellBase },
-            { text: formatHandover(w.handoverDate), options: bodyCellBase },
+            { text: formatHandover(w), options: bodyCellBase },
         ];
     });
 

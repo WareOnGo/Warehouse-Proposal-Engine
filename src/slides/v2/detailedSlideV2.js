@@ -282,7 +282,7 @@ async function generateDetailedSlideV2(pptx, warehouse, selectedPhotoUrls, optio
         ['Flooring', flooringValue],
         ['Fire Safety', wd.fireSafetyMeasures || 'N/A'],
         ['Compliances', [cluValue, fireNocValue]],
-        ['Handover', formatHandover(warehouse.handoverDate)],
+        ['Handover', formatHandover(warehouse)],
     ];
     const specsHeight = buildTable(slide, specRows, specsTableY, true);
 
